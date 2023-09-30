@@ -1,0 +1,66 @@
+name:                spec-quarter
+version:             0.1.0.0
+description:         Spec for Quarter Forth.
+license:             BSD3
+author:              Nick Chapman
+maintainer:          nic@amadido.co.uk
+github:              Nick-Chapman/spec-quarter.git
+
+extra-source-files:
+- README.md
+
+dependencies:
+- ansi-terminal
+- array
+- async
+- base >= 4.7 && < 5
+- bytestring
+- clock
+- containers
+- containers
+- extra
+- haskeline
+- mtl
+- split
+- text
+- time
+- transformers
+- word8
+- EarleyM
+
+default-extensions:
+- BangPatterns
+- DataKinds
+- DeriveFunctor
+- DuplicateRecordFields
+- EmptyCase
+- FlexibleContexts
+- GADTs
+- GeneralizedNewtypeDeriving
+- InstanceSigs
+- LambdaCase
+- MultiWayIf
+- NamedFieldPuns
+- NondecreasingIndentation
+- NumericUnderscores
+- QualifiedDo
+- RankNTypes
+- RecursiveDo
+- ScopedTypeVariables
+- StandaloneDeriving
+- TypeApplications
+- TypeFamilies
+- UndecidableInstances
+
+ghc-options:
+- -Werror
+- -Wall
+- -Wno-name-shadowing
+
+library:
+  source-dirs: src
+
+executables:
+  main.exe:
+    main:                app/main.hs
+    dependencies:        spec-quarter
