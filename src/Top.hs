@@ -7,11 +7,13 @@ import Control.Monad (ap,liftM)
 import Data.Word (Word16)
 import Text.Printf (printf)
 
+
 main :: IO ()
 main = do
   putStrLn "*quarter-spec*"
   src <- readFile "/home/nic/code/quarter-forth/f/quarter.q"
-  go src
+  let src' = takeWhile (/='H') src
+  go src'
 
 go :: String -> IO ()
 go s = do
@@ -21,10 +23,10 @@ go s = do
   runInteraction s i
 
 data Interaction
-  = IHalt
+  = IFinal Machine
   | ICR Interaction
   | IPut Char Interaction
-  | IGet (Char -> Interaction)
+  | IGet (Maybe Char -> Interaction)
   | IDebug Machine Interaction
   | IMessage String Interaction
 
@@ -33,8 +35,9 @@ runInteraction = loop 0
   where
     loop :: Int -> String -> Interaction -> IO ()
     loop n inp = \case -- n counts the gets
-      IHalt -> do
-        putStrLn (show ("IHalt: remaining string:",inp))
+      IFinal machine -> do
+        --printf "Remaining input: '%s'" inp
+        printf "\n%s\n" (seeFinalMachine machine)
         pure ()
       IDebug m i -> do
         printf " %s\n" (show m)
@@ -50,10 +53,10 @@ runInteraction = loop 0
         loop n inp i
       IGet f -> do
         case inp of
-          [] -> putStrLn (show ("string run out"))
+          [] -> loop (n+1) inp (f Nothing)
           c:inp -> do
-            printf "%s" [c] -- (show ("IGet:",c))
-            loop (n+1) inp (f c)
+            printf "%s" [c]
+            loop (n+1) inp (f (Just c))
 
 data Prim
   = Kdx_K | Kdx_D | Kdx_X
@@ -130,14 +133,14 @@ prim1 = \case
   CompileComma -> do
     a <- bump
     v <- PsPop
-    UpdateMem a (CCall (addrOfValue v))
+    UpdateMem a (SlotCall (addrOfValue v))
   Comma -> do
     v <- PsPop
     a <- bump
-    UpdateMem a (CValue v)
+    UpdateMem a (SlotLit v)
   CompileRet -> do
     a <- bump
-    UpdateMem a CRet
+    UpdateMem a SlotRet
   Zero -> do
     PsPush (valueOfNumb 0)
   Lit -> do
@@ -145,7 +148,7 @@ prim1 = \case
     a <- RsPop
     slot <- LookupMem a
     case slot of
-      CValue v -> do
+      SlotLit v -> do
         let a' = nextAddr a
         --Message (printf "Lit: %s, r: %s->%s" (show v) (show a) (show a'))
         PsPush v
@@ -168,24 +171,23 @@ exec a0 = do
   x <- LookupMem a0
   --Message (printf "exec: %s --> %s" (show a0) (show x))
   case x of
-    CPrim p -> prim p
-    CCall a -> do
+    SlotPrim p -> prim p
+    SlotCall a -> do
       RsPush (nextAddr a0)
       exec a
-    CRet -> do
+    SlotRet -> do
       a <- RsPop
       exec a
-    CValue{} ->
+    SlotLit{} ->
       undefined
-    CChar{} ->
-      undefined
+    --SlotChar{} -> undefined
 
 instance Functor Eff where fmap = liftM
-instance Applicative Eff where pure = Ret; (<*>) = ap
+instance Applicative Eff where pure = Return; (<*>) = ap
 instance Monad Eff where (>>=) = Bind
 
 data Eff a where
-  Ret :: a -> Eff a
+  Return :: a -> Eff a
   Bind :: Eff a -> (a -> Eff b) -> Eff b
   Debug :: Eff ()
   Message :: String -> Eff ()
@@ -196,8 +198,8 @@ data Eff a where
   BumpHere :: Eff ()
   LookupDT :: Char -> Eff Addr
   UpdateDT :: Char -> Addr -> Eff ()
-  LookupMem :: Addr -> Eff Contents
-  UpdateMem :: Addr -> Contents -> Eff ()
+  LookupMem :: Addr -> Eff Slot
+  UpdateMem :: Addr -> Slot -> Eff ()
   PsPush :: Value -> Eff ()
   PsPop :: Eff Value
   RsPush :: Addr -> Eff ()
@@ -207,15 +209,15 @@ runEff :: Machine -> Eff () -> Interaction
 runEff m e = loop m e k0
   where
     k0 :: () -> Machine -> Interaction
-    k0 () _ = IHalt
+    k0 () m = IFinal m
 
     loop :: Machine -> Eff a -> (a -> Machine -> Interaction) -> Interaction
     loop m e k = case e of
-      Ret a -> k a m
+      Return a -> k a m
       Bind e f -> loop m e $ \a m -> loop m (f a) k
       Debug -> do IDebug m $ k () m
       Message s -> do IMessage s $ k () m
-      Get -> IGet (\c -> k c m)
+      Get -> IGet (\case Just c -> k c m; Nothing -> k0 () m)
       Put c -> IPut c $ k () m
       E_CR -> ICR $ k () m
       E_Here -> do
@@ -261,7 +263,7 @@ data Machine = Machine
   { pstack :: [Value]
   , rstack :: [Addr]
   , dispatchTable :: Map Char Addr
-  , mem :: Map Addr Contents
+  , mem :: Map Addr Slot
   , here :: Int
   }
 
@@ -269,6 +271,10 @@ instance Show Machine where
   show Machine{pstack=_p,rstack=_r} = do
     printf "%s ; %s" (show (reverse _p)) (show _r)
     --printf "%s" (show (reverse _p))
+
+seeFinalMachine :: Machine -> String
+seeFinalMachine m@Machine{mem} =
+  unlines [ show m , dumpMem mem ]
 
 machine0 :: Machine
 machine0 = Machine
@@ -279,12 +285,31 @@ machine0 = Machine
   , here = 0
   }
 
-mem0 :: Map Addr Contents
-mem0 = Map.fromList [ (AP p, CPrim p) | p <- allPrims ]
+type Mem = Map Addr Slot
+
+
+dumpMem :: Mem -> String
+dumpMem mem = do
+  unlines
+    [ printf "%s : %s" (show a) (unwords (map show slots))
+    | (a,slots) <- collectDef (AN 0) (AN 0) []
+    ]
+  where
+    collectDef :: Addr -> Addr -> [Slot] -> [(Addr,[Slot])]
+    collectDef a0 a acc =
+      case Map.lookup a mem of
+        Nothing -> [(a0,reverse acc)]
+        Just slot ->
+          case slot of
+            SlotRet -> do
+              let a' = nextAddr a
+              (a0,reverse (slot:acc)) : collectDef a' a' []
+            _ ->
+              collectDef a0 (nextAddr a) (slot:acc)
+
+mem0 :: Mem
+mem0 = Map.fromList [ (AP p, SlotPrim p) | p <- allPrims ]
   where allPrims = [minBound..maxBound]
-
-
--- TODO: dump defs we have compiled into mem
 
 
 data Addr = AP Prim | AN Int
@@ -300,20 +325,20 @@ nextAddr = \case
   AN i -> AN (i+1)
   a -> error (show ("nextAddr",a))
 
-data Contents
-  = CPrim Prim
-  | CCall Addr
-  | CRet
-  | CValue Value
-  | CChar Char
+data Slot
+  = SlotPrim Prim
+  | SlotCall Addr
+  | SlotRet
+  | SlotLit Value
+  -- | SlotChar Char
 
-instance Show Contents where
+instance Show Slot where
   show = \case
-    CPrim p -> printf "*%s" (show p)
-    CCall a -> printf "*%s" (show a)
-    CRet -> printf "*ret"
-    CValue v -> printf "#%s" (show v)
-    CChar c -> printf "#'%s'" [c]
+    SlotPrim p -> printf "*%s" (show p)
+    SlotCall a -> printf "*%s" (show a)
+    SlotRet -> printf "*ret"
+    SlotLit v -> printf "#%s" (show v)
+    -- SlotChar c -> printf "#'%s'" [c]
 
 
 data Value = VC Char | VN Word16 | VA Addr
