@@ -6,14 +6,14 @@ import Data.Map (Map)
 import Control.Monad (ap,liftM)
 import Data.Word (Word16)
 import Text.Printf (printf)
-
+import Data.Char as Char (chr)
 
 main :: IO ()
 main = do
   putStrLn "*quarter-spec*"
   src <- readFile "/home/nic/code/quarter-forth/f/quarter.q"
-  let src' = takeWhile (/='H') src
-  go src'
+  --let src' = takeWhile (/='H') src
+  go src
 
 go :: String -> IO ()
 go s = do
@@ -24,6 +24,7 @@ go s = do
 
 data Interaction
   = IFinal Machine
+  | IError String Machine
   | ICR Interaction
   | IPut Char Interaction
   | IGet (Maybe Char -> Interaction)
@@ -35,9 +36,13 @@ runInteraction = loop 0
   where
     loop :: Int -> String -> Interaction -> IO ()
     loop n inp = \case -- n counts the gets
-      IFinal machine -> do
+      IFinal m -> do
         --printf "Remaining input: '%s'" inp
-        printf "\n%s\n" (seeFinalMachine machine)
+        printf "\n%s\n" (seeFinalMachine m)
+        pure ()
+      IError s _m -> do
+        printf "\n**Error: %s" s
+        printf "\n%s\n" (seeFinalMachine _m)
         pure ()
       IDebug m i -> do
         printf " %s\n" (show m)
@@ -58,40 +63,13 @@ runInteraction = loop 0
             printf "%s" [c]
             loop (n+1) inp (f (Just c))
 
-data Prim
-  = Kdx_K | Kdx_D | Kdx_X
-  | Key | Dispatch | Execute
-  | Emit | CR | Nop | SetTabEntry
-  | CompileComma
-  | CompileRet
-  | Comma
-  | Zero
-  | Lit | Branch0
-  deriving (Eq,Ord,Show,Enum,Bounded)
-
-dispatchTable0 :: Map Char Addr
-dispatchTable0 = Map.fromList
-  [ ('^', AP Key)
-  , ('?', AP Dispatch)
-  , ('.', AP Emit)
-  , ('M', AP CR)
-  , ('\n', AP Nop)
-  , (' ', AP Nop)
-  , (':', AP SetTabEntry)
-  , ('>', AP CompileComma)
-  , (',', AP Comma)
-  , (';', AP CompileRet)
-  , ('0', AP Zero)
-  , ('L', AP Lit)
-  , ('B', AP Branch0)
-  ]
-
 kernelEffect :: Eff ()
 kernelEffect = prim Kdx_K
 
 prim :: Prim -> Eff ()
 prim p = do
   --Message (printf "prim: %s" (show p))
+  --Debug
   prim1 p
   a <- RsPop
   exec a
@@ -99,7 +77,6 @@ prim p = do
 prim1 :: Prim -> Eff ()
 prim1 = \case
   Kdx_K -> do
-    --Debug
     RsPush (AP Kdx_D)
     prim Key
   Kdx_D -> do
@@ -116,7 +93,7 @@ prim1 = \case
     a <- LookupDT (charOfValue v)
     PsPush (valueOfAddr a)
   Execute -> do
-    --Debug -- good place
+    --Debug
     v <- PsPop
     exec (addrOfValue v)
   Emit -> do
@@ -138,27 +115,107 @@ prim1 = \case
     v <- PsPop
     a <- bump
     UpdateMem a (SlotLit v)
+  C_Comma -> do
+    v <- PsPop
+    a <- bump
+    UpdateMem a (SlotChar (charOfValue v))
+  EntryComma -> do
+    pure () -- TODO
   CompileRet -> do
     a <- bump
     UpdateMem a SlotRet
-  Zero -> do
-    PsPush (valueOfNumb 0)
   Lit -> do
-    --Debug
     a <- RsPop
     slot <- LookupMem a
     case slot of
       SlotLit v -> do
         let a' = nextAddr a
-        --Message (printf "Lit: %s, r: %s->%s" (show v) (show a) (show a'))
         PsPush v
         RsPush a'
-        --Debug
       _ -> do
         error (printf "Lit: unexpected following slot: %s" (show slot))
 
   Branch0 -> do
+    undefined -- TODO: HERE NEXT
+  HerePointer -> do
+    a <- E_HereAddr
+    PsPush (valueOfAddr a)
+  Fetch -> do
+    v1 <- PsPop
+    slot <- LookupMem (addrOfValue v1)
+    case slot of
+      SlotLit v -> PsPush v
+      _ -> error (printf "Fetch: unexpected slot: %s" (show slot))
+  Store -> do
+    vLoc <- PsPop
+    v <- PsPop
+    UpdateMem (addrOfValue vLoc) (SlotLit v)
+  Dup -> do
+    v <- PsPop
+    PsPush v
+    PsPush v
+  Swap -> do
+    v1 <- PsPop
+    v2 <- PsPop
+    PsPush v1
+    PsPush v2
+  Zero -> do
+    PsPush (valueOfNumb 0)
+  Minus -> do
+    v2 <- PsPop
+    v1 <- PsPop
+    PsPush (valueMinus v1 v2)
+  Equal -> do
+    v2 <- PsPop
+    v1 <- PsPop
+    PsPush (valueEqual v1 v2)
+  Exit ->
     undefined
+  Jump ->
+    undefined
+
+data Prim
+  = Kdx_K | Kdx_D | Kdx_X
+  | Key | Dispatch | Execute
+  | Emit | CR | Nop | SetTabEntry
+  | CompileComma
+  | CompileRet
+  | Comma | C_Comma | EntryComma
+  | Lit | Branch0
+  | HerePointer
+  | Fetch | Store
+  | Dup | Swap
+  | Zero | Minus | Equal
+  | Exit | Jump
+  deriving (Eq,Ord,Show,Enum,Bounded)
+
+dispatchTable0 :: Map Char Addr
+dispatchTable0 = Map.fromList
+  [ ('^', AP Key)
+  , ('?', AP Dispatch)
+  , ('.', AP Emit)
+  , ('M', AP CR)
+  , ('\n', AP Nop)
+  , (' ', AP Nop)
+  , (':', AP SetTabEntry)
+  , ('>', AP CompileComma)
+  , (',', AP Comma)
+  , (';', AP CompileRet)
+  , ('0', AP Zero)
+  , ('L', AP Lit)
+  , ('B', AP Branch0)
+  , ('H', AP HerePointer)
+  , ('@', AP Fetch)
+  , ('!', AP Store)
+  , ('D', AP Dup)
+  , ('W', AP Swap)
+  , ('-', AP Minus)
+  , ('\\',AP C_Comma)
+  , ('E', AP EntryComma)
+  , ('=', AP Equal)
+  , ('X', AP Exit)
+  , ('J', AP Jump)
+  ]
 
 bump :: Eff Addr
 bump = do
@@ -180,7 +237,8 @@ exec a0 = do
       exec a
     SlotLit{} ->
       undefined
-    --SlotChar{} -> undefined
+    SlotChar{} ->
+      undefined
 
 instance Functor Eff where fmap = liftM
 instance Applicative Eff where pure = Return; (<*>) = ap
@@ -191,11 +249,10 @@ data Eff a where
   Bind :: Eff a -> (a -> Eff b) -> Eff b
   Debug :: Eff ()
   Message :: String -> Eff ()
+  E_Abort :: Eff ()
   Get :: Eff Char
   Put :: Char -> Eff ()
   E_CR :: Eff ()
-  E_Here :: Eff Addr
-  BumpHere :: Eff ()
   LookupDT :: Char -> Eff Addr
   UpdateDT :: Char -> Addr -> Eff ()
   LookupMem :: Addr -> Eff Slot
@@ -204,6 +261,9 @@ data Eff a where
   PsPop :: Eff Value
   RsPush :: Addr -> Eff ()
   RsPop :: Eff Addr
+  E_HereAddr :: Eff Addr
+  E_Here :: Eff Addr
+  BumpHere :: Eff ()
 
 runEff :: Machine -> Eff () -> Interaction
 runEff m e = loop m e k0
@@ -217,20 +277,15 @@ runEff m e = loop m e k0
       Bind e f -> loop m e $ \a m -> loop m (f a) k
       Debug -> do IDebug m $ k () m
       Message s -> do IMessage s $ k () m
+      E_Abort -> IError "Abort" m
       Get -> IGet (\case Just c -> k c m; Nothing -> k0 () m)
       Put c -> IPut c $ k () m
       E_CR -> ICR $ k () m
-      E_Here -> do
-        let Machine{here} = m
-        k (AN here) m
-      BumpHere -> do
-        let Machine{here} = m
-        k () m { here = here + 1 }
       LookupDT c -> do
         let Machine{dispatchTable=dt} = m
-        let a = maybe err id $ Map.lookup c dt
-              where err = error (show ("lookupDT",c))
-        k a m
+        case Map.lookup c dt of
+          Nothing -> IError (show ("lookupDT",c)) m
+          Just a -> k a m
       UpdateDT c a -> do
         let Machine{dispatchTable=dt} = m
         k () m { dispatchTable = Map.insert c a dt }
@@ -258,13 +313,25 @@ runEff m e = loop m e k0
         case rstack of
           [] -> error "RsPop[]"
           v:rstack -> k v m { rstack }
+      E_HereAddr -> do
+        let Machine{hereAddr=a} = m
+        k a m
+      E_Here -> do
+        let Machine{hereAddr=a,mem} = m
+        let slot = maybe undefined id $ Map.lookup a mem
+        k (addrOfValue (valueOfSlot slot)) m
+      BumpHere -> do
+        let Machine{hereAddr=a,mem} = m
+        let slot = maybe undefined id $ Map.lookup a mem
+        let slot' = SlotLit (valueOfAddr (nextAddr (addrOfValue (valueOfSlot slot))))
+        k () m { mem = Map.insert a slot' mem }
 
 data Machine = Machine
   { pstack :: [Value]
   , rstack :: [Addr]
   , dispatchTable :: Map Char Addr
   , mem :: Map Addr Slot
-  , here :: Int
+  , hereAddr :: Addr
   }
 
 instance Show Machine where
@@ -282,11 +349,16 @@ machine0 = Machine
   , rstack = []
   , dispatchTable = dispatchTable0
   , mem = mem0
-  , here = 0
+  , hereAddr = AN 0
   }
 
 type Mem = Map Addr Slot
 
+mem0 :: Mem
+mem0 = Map.fromList ([ (AP p, SlotPrim p) | p <- allPrims ]
+                     ++ [(AN 0, SlotLit (VA (AN 1)))]
+                    )
+  where allPrims = [minBound..maxBound]
 
 dumpMem :: Mem -> String
 dumpMem mem = do
@@ -307,12 +379,7 @@ dumpMem mem = do
             _ ->
               collectDef a0 (nextAddr a) (slot:acc)
 
-mem0 :: Mem
-mem0 = Map.fromList [ (AP p, SlotPrim p) | p <- allPrims ]
-  where allPrims = [minBound..maxBound]
-
-
-data Addr = AP Prim | AN Int
+data Addr = AP Prim | AN Numb
   deriving (Eq,Ord)
 
 instance Show Addr where
@@ -330,7 +397,7 @@ data Slot
   | SlotCall Addr
   | SlotRet
   | SlotLit Value
-  -- | SlotChar Char
+  | SlotChar Char
 
 instance Show Slot where
   show = \case
@@ -338,10 +405,15 @@ instance Show Slot where
     SlotCall a -> printf "*%s" (show a)
     SlotRet -> printf "*ret"
     SlotLit v -> printf "#%s" (show v)
-    -- SlotChar c -> printf "#'%s'" [c]
+    SlotChar c -> printf "#'%s'" [c]
+
+valueOfSlot :: Slot -> Value
+valueOfSlot = \case
+  SlotLit v -> v
+  slot -> error (printf "unexpected slot: %s" (show slot))
 
 
-data Value = VC Char | VN Word16 | VA Addr
+data Value = VC Char | VN Word16 | VA Addr deriving (Eq)
 
 instance Show Value where
   show = \case
@@ -349,11 +421,25 @@ instance Show Value where
     VN n -> printf "%d" n
     VA a -> show a
 
+valueMinus :: Value -> Value -> Value
+valueMinus v1 v2 = valueOfNumb (numbOfValue v1 - numbOfValue v2)
+
+valueEqual :: Value -> Value -> Value
+valueEqual v1 v2 = valueOfBool (v1 == v2) -- not quite right
+
+valueOfBool :: Bool -> Value
+valueOfBool = VN . \case True -> vTrue; False-> vFalse
+  where vTrue = 65535; vFalse = 0
+
+
 valueOfChar :: Char -> Value
 valueOfChar = VC
 
 charOfValue :: Value -> Char
-charOfValue = \case VC c -> c ; v -> error (show ("charOfValue",v))
+charOfValue = \case
+  VC c -> c
+  VN n -> Char.chr (fromIntegral (n `mod` 256)) -- dodgy?
+  v -> error (show ("charOfValue",v))
 
 valueOfAddr :: Addr -> Value
 valueOfAddr = VA
@@ -364,7 +450,10 @@ addrOfValue = \case VA a -> a ; v -> error (show ("addrOfValue",v))
 valueOfNumb :: Numb -> Value
 valueOfNumb = VN
 
---numbOfValue :: Value -> Numb
---numbOfValue = \case VN a -> a ; v -> error (show ("numbOfValue",v))
+numbOfValue :: Value -> Numb
+numbOfValue = \case
+  VN n -> n
+  VA (AN n) -> n -- Dodgy??
+  v -> error (show ("numbOfValue",v))
 
 type Numb = Word16
