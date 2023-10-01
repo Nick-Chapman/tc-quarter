@@ -5,6 +5,7 @@ import qualified Data.Map as Map
 import Data.Map (Map)
 import Control.Monad (ap,liftM)
 import Data.Word (Word16)
+import Text.Printf (printf)
 
 main :: IO ()
 main = do
@@ -28,31 +29,31 @@ data Interaction
   | IMessage String Interaction
 
 runInteraction :: String -> Interaction -> IO ()
-runInteraction = loop
+runInteraction = loop 0
   where
-    loop :: String -> Interaction -> IO ()
-    loop inp = \case
+    loop :: Int -> String -> Interaction -> IO ()
+    loop n inp = \case -- n counts the gets
       IHalt -> do
         putStrLn (show ("IHalt: remaining string:",inp))
         pure ()
       IDebug m i -> do
-        putStrLn (show ("IDebug:",m))
-        loop inp i
-      IMessage s i -> do
-        putStrLn (show ("IMessage:",s))
-        loop inp i
+        printf " %s\n" (show m)
+        loop n inp i
+      IMessage mes i -> do
+        printf "**%s\n" mes
+        loop n inp i
       ICR i -> do
-        putStrLn "" --(show ("ICR"))
-        loop inp i
-      IPut c i -> do
-        putStr ['(',c,')'] --(show ("IPut:",c))
-        loop inp i
+        --putStrLn "" --(show ("ICR"))
+        loop n inp i
+      IPut _c i -> do
+        --putStr ['(',_c,')'] --(show ("IPut:",c))
+        loop n inp i
       IGet f -> do
         case inp of
           [] -> putStrLn (show ("string run out"))
           c:inp -> do
-            putStr [c] -- (show ("IGet:",c))
-            runInteraction inp (f c)
+            printf "%s" [c] -- (show ("IGet:",c))
+            loop (n+1) inp (f c)
 
 data Prim
   = Kdx_K | Kdx_D | Kdx_X
@@ -62,7 +63,7 @@ data Prim
   | CompileRet
   | Comma
   | Zero
-  | Lit
+  | Lit | Branch0
   deriving (Eq,Ord,Show,Enum,Bounded)
 
 dispatchTable0 :: Map Char Addr
@@ -79,6 +80,7 @@ dispatchTable0 = Map.fromList
   , (';', AP CompileRet)
   , ('0', AP Zero)
   , ('L', AP Lit)
+  , ('B', AP Branch0)
   ]
 
 kernelEffect :: Eff ()
@@ -86,13 +88,15 @@ kernelEffect = prim Kdx_K
 
 prim :: Prim -> Eff ()
 prim p = do
+  --Message (printf "prim: %s" (show p))
   prim1 p
   a <- RsPop
-  runAddress a
+  exec a
 
 prim1 :: Prim -> Eff ()
 prim1 = \case
   Kdx_K -> do
+    --Debug
     RsPush (AP Kdx_D)
     prim Key
   Kdx_D -> do
@@ -109,8 +113,9 @@ prim1 = \case
     a <- LookupDT (charOfValue v)
     PsPush (valueOfAddr a)
   Execute -> do
+    --Debug -- good place
     v <- PsPop
-    runAddress (addrOfValue v)
+    exec (addrOfValue v)
   Emit -> do
     v <- PsPop
     Put (charOfValue v)
@@ -123,46 +128,57 @@ prim1 = \case
     a <- E_Here
     UpdateDT c a
   CompileComma -> do
-    (a,a') <- bump
+    a <- bump
     v <- PsPop
-    UpdateMem a (CCall (addrOfValue v) a')
+    UpdateMem a (CCall (addrOfValue v))
   Comma -> do
     v <- PsPop
-    (a,_) <- bump
+    a <- bump
     UpdateMem a (CValue v)
   CompileRet -> do
-    (a,_) <- bump
+    a <- bump
     UpdateMem a CRet
   Zero -> do
     PsPush (valueOfNumb 0)
   Lit -> do
+    --Debug
+    a <- RsPop
+    slot <- LookupMem a
+    case slot of
+      CValue v -> do
+        let a' = nextAddr a
+        --Message (printf "Lit: %s, r: %s->%s" (show v) (show a) (show a'))
+        PsPush v
+        RsPush a'
+        --Debug
+      _ -> do
+        error (printf "Lit: unexpected following slot: %s" (show slot))
+
+  Branch0 -> do
     undefined
 
-bump :: Eff (Addr,Addr)
+bump :: Eff Addr
 bump = do
   a <- E_Here
   BumpHere
-  a' <- E_Here
-  pure (a,a')
+  pure a
 
-runCode :: Contents -> Eff ()
-runCode = \case
-  CPrim p -> prim p
-  CCall xt a -> do
-    RsPush a
-    runAddress xt
-  CRet -> do
-    a <- RsPop
-    runAddress a
-  CValue{} ->
-    undefined
-  CChar{} ->
-    undefined
-
-runAddress :: Addr -> Eff ()
-runAddress a = do
-  x <- LookupMem a
-  runCode x
+exec :: Addr -> Eff ()
+exec a0 = do
+  x <- LookupMem a0
+  --Message (printf "exec: %s --> %s" (show a0) (show x))
+  case x of
+    CPrim p -> prim p
+    CCall a -> do
+      RsPush (nextAddr a0)
+      exec a
+    CRet -> do
+      a <- RsPop
+      exec a
+    CValue{} ->
+      undefined
+    CChar{} ->
+      undefined
 
 instance Functor Eff where fmap = liftM
 instance Applicative Eff where pure = Ret; (<*>) = ap
@@ -204,10 +220,10 @@ runEff m e = loop m e k0
       E_CR -> ICR $ k () m
       E_Here -> do
         let Machine{here} = m
-        k here m
+        k (AN here) m
       BumpHere -> do
         let Machine{here} = m
-        k () m { here = nextAddr here }
+        k () m { here = here + 1 }
       LookupDT c -> do
         let Machine{dispatchTable=dt} = m
         let a = maybe err id $ Map.lookup c dt
@@ -246,9 +262,13 @@ data Machine = Machine
   , rstack :: [Addr]
   , dispatchTable :: Map Char Addr
   , mem :: Map Addr Contents
-  , here :: Addr
+  , here :: Int
   }
-  deriving Show
+
+instance Show Machine where
+  show Machine{pstack=_p,rstack=_r} = do
+    printf "%s ; %s" (show (reverse _p)) (show _r)
+    --printf "%s" (show (reverse _p))
 
 machine0 :: Machine
 machine0 = Machine
@@ -256,15 +276,24 @@ machine0 = Machine
   , rstack = []
   , dispatchTable = dispatchTable0
   , mem = mem0
-  , here = AN 0
+  , here = 0
   }
 
 mem0 :: Map Addr Contents
 mem0 = Map.fromList [ (AP p, CPrim p) | p <- allPrims ]
   where allPrims = [minBound..maxBound]
 
+
+-- TODO: dump defs we have compiled into mem
+
+
 data Addr = AP Prim | AN Int
-  deriving (Eq,Ord,Show)
+  deriving (Eq,Ord)
+
+instance Show Addr where
+  show = \case
+    AP p -> printf "&%s" (show p)
+    AN n -> printf "&%d" n
 
 nextAddr :: Addr -> Addr
 nextAddr = \case
@@ -273,13 +302,27 @@ nextAddr = \case
 
 data Contents
   = CPrim Prim
-  | CCall Addr Addr
+  | CCall Addr
   | CRet
   | CValue Value
   | CChar Char
-  deriving Show
 
-data Value = VC Char | VN Word16 | VA Addr deriving Show
+instance Show Contents where
+  show = \case
+    CPrim p -> printf "*%s" (show p)
+    CCall a -> printf "*%s" (show a)
+    CRet -> printf "*ret"
+    CValue v -> printf "#%s" (show v)
+    CChar c -> printf "#'%s'" [c]
+
+
+data Value = VC Char | VN Word16 | VA Addr
+
+instance Show Value where
+  show = \case
+    VC c -> printf "'%s'" [c]
+    VN n -> printf "%d" n
+    VA a -> show a
 
 valueOfChar :: Char -> Value
 valueOfChar = VC
