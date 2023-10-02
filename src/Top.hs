@@ -45,7 +45,7 @@ runInteraction = loop 0
         --printf "\n%s\n" (seeFinalMachine _m)
         pure ()
       IDebug m i -> do
-        printf " %s\n" (show m)
+        printf " %s " (show m)
         loop n inp i
       IDebugMem m i -> do
         printf "\n%s\n" (seeFinalMachine m)
@@ -57,12 +57,13 @@ runInteraction = loop 0
         --putStrLn "" --(show ("ICR"))
         loop n inp i
       IPut _c i -> do
-        --putStr ['(',_c,')'] --(show ("IPut:",c))
+        printf "PUT: %c\n" _c --putStr ['(',_c,')'] --(show ("IPut:",c))
         loop n inp i
       IGet f -> do
         case inp of
           [] -> loop (n+1) inp (f Nothing)
           c:inp -> do
+            --printf "\n%c\n" c
             printf "%c" c
             loop (n+1) inp (f (Just c))
 
@@ -88,7 +89,8 @@ kernelEffect = prim Kdx_K
 prim :: Prim -> Eff ()
 prim p = do
   --Debug
-  --Message (printf "prim: %s" (show p))
+  _i <- Tick
+  --Message (printf " {%d} %s" _i (show p))
   prim1 p
   a <- RsPop
   exec a
@@ -224,13 +226,14 @@ prim1 = \case
   XtName -> do
     undefined
   Latest -> do
-    undefined
+    --undefined
+    PsPush (valueOfAddr (AN 0)) -- no defs!
   IsHidden -> do
     undefined
   IsImmediate -> do
     undefined
   CrashOnlyDuringStartup -> do
-    undefined
+    pure () -- TODO: ??
 
 bump :: Eff Addr -- TODO: prim effect?
 bump = do
@@ -264,6 +267,7 @@ data Eff a where
   DebugMem :: Eff ()
   Message :: String -> Eff ()
   E_Abort :: Eff ()
+  Tick :: Eff Int
   Get :: Eff Char
   Put :: Char -> Eff ()
   E_CR :: Eff ()
@@ -295,6 +299,9 @@ runEff m e = loop m e k0
       DebugMem -> do IDebugMem m $ k () m
       Message s -> do IMessage s $ k () m
       E_Abort -> IError "Abort" m
+      Tick -> do
+        let Machine{tick} = m
+        k tick m { tick = tick + 1 }
       Get -> IGet (\case Just c -> k c m; Nothing -> k0 () m)
       Put c -> IPut c $ k () m
       E_CR -> ICR $ k () m
@@ -308,9 +315,9 @@ runEff m e = loop m e k0
         k () m { dispatchTable = Map.insert c a dt }
       LookupMem a -> do
         let Machine{mem} = m
-        let x = maybe err id $ Map.lookup a mem
-              where err = error (show ("lookupMem",a))
-        k x m
+        case Map.lookup a mem of
+          Just x -> k x m
+          Nothing -> IError (show ("lookupMem",a)) m
       UpdateMem a x -> do
         let Machine{mem} = m
         k () m { mem = Map.insert a x mem }
@@ -351,6 +358,7 @@ data Machine = Machine
   , dispatchTable :: Map Char Addr
   , mem :: Map Addr Slot
   , hereAddr :: Addr
+  , tick :: Int
   }
 
 instance Show Machine where
@@ -368,6 +376,7 @@ machine0 = Machine
   , dispatchTable = dispatchTable0
   , mem = mem0
   , hereAddr = AN 0
+  , tick = 0
   }
 
 dispatchTable0 :: Map Char Addr
@@ -459,11 +468,11 @@ instance Show Slot where
     SlotCall a -> printf "*%s" (show a)
     SlotRet -> printf "*ret"
     SlotLit v -> printf "#%s" (show v)
-    SlotChar c -> printf "#'\\%02x'" (Char.ord c)
+    SlotChar c -> printf "#%s" (seeChar c)
 
 instance Show Value where
   show = \case
-    VC c -> printf "'%c'" c
+    VC c -> seeChar c
     VN n -> printf "%d" n
     VA a -> show a
 
@@ -527,7 +536,10 @@ valueOfAddr :: Addr -> Value
 valueOfAddr = VA
 
 addrOfValue :: Value -> Addr
-addrOfValue = \case VA a -> a ; v -> error (show ("addrOfValue",v))
+addrOfValue = \case
+  VA a -> a
+  VN n -> AN n -- TODO: hmm?
+  v@VC{} -> error (show ("addrOfValue",v))
 
 valueOfNumb :: Numb -> Value
 valueOfNumb = VN
@@ -538,3 +550,6 @@ numbOfValue = \case
   VN n -> n
   VA (AN n) -> n
   VA (AP p) -> error (show ("numbOfValue/AP",p))
+
+seeChar :: Char -> String
+seeChar c = printf "'\\%02x'" (Char.ord c)
