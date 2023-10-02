@@ -11,7 +11,8 @@ import Data.Char as Char (chr,ord)
 main :: IO ()
 main = do
   putStrLn "*quarter-spec*"
-  src <- readFile "/home/nic/code/quarter-forth/f/quarter.q"
+  --src <- readFile "/home/nic/code/quarter-forth/f/quarter.q"
+  src <- readFile "q+f"
   go src
 
 go :: String -> IO ()
@@ -167,7 +168,9 @@ prim1 = \case
     slot <- LookupMem (addrOfValue v1)
     PsPush (valueOfSlot slot)
   C_Fetch -> do
-    undefined
+    v1 <- PsPop
+    slot <- LookupMem (addrOfValue v1)
+    PsPush (valueOfChar (charOfSlot slot))
   Store -> do
     vLoc <- PsPop
     v <- PsPop
@@ -182,9 +185,14 @@ prim1 = \case
     PsPush v1
     PsPush v2
   Over -> do
-    undefined
+    v1 <- PsPop
+    v2 <- PsPop
+    PsPush v2
+    PsPush v1
+    PsPush v2
   Drop -> do
-    undefined
+    _ <- PsPop
+    pure ()
   Zero -> do
     PsPush (valueOfNumb 0)
   One -> do
@@ -206,7 +214,9 @@ prim1 = \case
     v1 <- PsPop
     PsPush (valueEqual v1 v2)
   LessThan -> do
-    undefined
+    v2 <- PsPop
+    v1 <- PsPop
+    PsPush (valueLessThan v1 v2)
   EntryComma -> do
     pure () -- TODO
   XtNext -> do
@@ -239,9 +249,9 @@ exec a0 = do
       a <- RsPop
       exec a
     SlotLit{} ->
-      undefined -- TODO: actually an error
+      error "exec: SLotLit"
     SlotChar{} ->
-      undefined -- TODO: actually an error
+      error "exec: SlotChar"
 
 instance Functor Eff where fmap = liftM
 instance Applicative Eff where pure = Return; (<*>) = ap
@@ -274,7 +284,7 @@ runEff m e = loop m e k0
   where
     k0 :: () -> Machine -> Interaction
     k0 () _m = do
-      IDebugMem _m $
+      --IDebugMem _m $
         IHalt
 
     loop :: Machine -> Eff a -> (a -> Machine -> Interaction) -> Interaction
@@ -325,11 +335,13 @@ runEff m e = loop m e k0
         k a m
       E_Here -> do
         let Machine{hereAddr=a,mem} = m
-        let slot = maybe undefined id $ Map.lookup a mem
+        let err = error "E_Here"
+        let slot = maybe err id $ Map.lookup a mem
         k (addrOfValue (valueOfSlot slot)) m
       BumpHere -> do
         let Machine{hereAddr=a,mem} = m
-        let slot = maybe undefined id $ Map.lookup a mem
+        let err = error "BumpHere"
+        let slot = maybe err id $ Map.lookup a mem
         let slot' = SlotLit (valueOfAddr (nextAddr (addrOfValue (valueOfSlot slot))))
         k () m { mem = Map.insert a slot' mem }
 
@@ -473,7 +485,12 @@ offsetAddr a v = case a of
 valueOfSlot :: Slot -> Value
 valueOfSlot = \case
   SlotLit v -> v
-  slot -> error (printf "unexpected slot: %s" (show slot))
+  slot -> error (printf "unexpected non-value slot: %s" (show slot))
+
+charOfSlot :: Slot -> Char
+charOfSlot = \case
+  SlotChar c -> c
+  slot -> error (printf "unexpected non-char slot: %s" (show slot))
 
 isZero :: Value -> Bool
 isZero v = numbOfValue v == 0
@@ -488,7 +505,10 @@ valueMul :: Value -> Value -> Value
 valueMul v1 v2 = valueOfNumb (numbOfValue v1 * numbOfValue v2)
 
 valueEqual :: Value -> Value -> Value
-valueEqual v1 v2 = valueOfBool (v1 == v2) -- TODO: not quite right
+valueEqual v1 v2 = valueOfBool (numbOfValue v1 == numbOfValue v2)
+
+valueLessThan :: Value -> Value -> Value
+valueLessThan v1 v2 = valueOfBool (numbOfValue v1 < numbOfValue v2)
 
 valueOfBool :: Bool -> Value
 valueOfBool = VN . \case True -> vTrue; False-> vFalse
@@ -514,6 +534,7 @@ valueOfNumb = VN
 
 numbOfValue :: Value -> Numb
 numbOfValue = \case
+  VC c -> fromIntegral (ord c)
   VN n -> n
-  VA (AN n) -> n -- TODO: dodgy?
-  v -> error (show ("numbOfValue",v))
+  VA (AN n) -> n
+  VA (AP p) -> error (show ("numbOfValue/AP",p))
