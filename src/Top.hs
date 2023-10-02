@@ -6,7 +6,7 @@ import Data.Map (Map)
 import Control.Monad (ap,liftM)
 import Data.Word (Word16)
 import Text.Printf (printf)
-import Data.Char as Char (chr)
+import Data.Char as Char (chr,ord)
 
 main :: IO ()
 main = do
@@ -23,12 +23,13 @@ go s = do
   runInteraction s i
 
 data Interaction
-  = IFinal Machine
+  = IHalt
   | IError String Machine
   | ICR Interaction
   | IPut Char Interaction
   | IGet (Maybe Char -> Interaction)
   | IDebug Machine Interaction
+  | IDebugMem Machine Interaction
   | IMessage String Interaction
 
 runInteraction :: String -> Interaction -> IO ()
@@ -36,9 +37,8 @@ runInteraction = loop 0
   where
     loop :: Int -> String -> Interaction -> IO ()
     loop n inp = \case -- n counts the gets
-      IFinal m -> do
+      IHalt -> do
         --printf "Remaining input: '%s'" inp
-        printf "\n%s\n" (seeFinalMachine m)
         pure ()
       IError s _m -> do
         printf "\n**Error: %s" s
@@ -46,6 +46,9 @@ runInteraction = loop 0
         pure ()
       IDebug m i -> do
         printf " %s\n" (show m)
+        loop n inp i
+      IDebugMem m i -> do
+        printf "\n%s\n" (seeFinalMachine m)
         loop n inp i
       IMessage mes i -> do
         printf "**%s\n" mes
@@ -60,7 +63,7 @@ runInteraction = loop 0
         case inp of
           [] -> loop (n+1) inp (f Nothing)
           c:inp -> do
-            printf "%s" [c]
+            printf "%c" c
             loop (n+1) inp (f (Just c))
 
 kernelEffect :: Eff ()
@@ -68,8 +71,8 @@ kernelEffect = prim Kdx_K
 
 prim :: Prim -> Eff ()
 prim p = do
-  --Message (printf "prim: %s" (show p))
   --Debug
+  --Message (printf "prim: %s" (show p))
   prim1 p
   a <- RsPop
   exec a
@@ -136,7 +139,14 @@ prim1 = \case
         error (printf "Lit: unexpected following slot: %s" (show slot))
 
   Branch0 -> do
-    undefined -- TODO: HERE NEXT
+    a <- RsPop
+    slot <- LookupMem a
+    let vDist = valueOfSlot slot
+    v <- PsPop
+    let a' = if isZero v then offsetAddr a vDist else nextAddr a
+    --Message (show ("Branch0", "v=", v, "dist=", vDist, isZero v, a'))
+    RsPush a'
+
   HerePointer -> do
     a <- E_HereAddr
     PsPush (valueOfAddr a)
@@ -169,10 +179,17 @@ prim1 = \case
     v2 <- PsPop
     v1 <- PsPop
     PsPush (valueEqual v1 v2)
-  Exit ->
-    undefined
-  Jump ->
-    undefined
+  Exit -> do
+    --Message "Exit"
+    _ <- RsPop
+    pure ()
+  Jump -> do
+    --Debug
+    _ <- RsPop
+    v <- PsPop
+    --Message (show ("Jump",v))
+    RsPush (addrOfValue v)
+
 
 data Prim
   = Kdx_K | Kdx_D | Kdx_X
@@ -210,7 +227,7 @@ dispatchTable0 = Map.fromList
   , ('D', AP Dup)
   , ('W', AP Swap)
   , ('-', AP Minus)
-  , ('\\',AP C_Comma)
+  , ('`', AP C_Comma)
   , ('E', AP EntryComma)
   , ('=', AP Equal)
   , ('X', AP Exit)
@@ -248,6 +265,7 @@ data Eff a where
   Return :: a -> Eff a
   Bind :: Eff a -> (a -> Eff b) -> Eff b
   Debug :: Eff ()
+  DebugMem :: Eff ()
   Message :: String -> Eff ()
   E_Abort :: Eff ()
   Get :: Eff Char
@@ -269,13 +287,15 @@ runEff :: Machine -> Eff () -> Interaction
 runEff m e = loop m e k0
   where
     k0 :: () -> Machine -> Interaction
-    k0 () m = IFinal m
+    k0 () m = do
+      IDebugMem m $ IHalt
 
     loop :: Machine -> Eff a -> (a -> Machine -> Interaction) -> Interaction
     loop m e k = case e of
       Return a -> k a m
       Bind e f -> loop m e $ \a m -> loop m (f a) k
       Debug -> do IDebug m $ k () m
+      DebugMem -> do IDebugMem m $ k () m
       Message s -> do IMessage s $ k () m
       E_Abort -> IError "Abort" m
       Get -> IGet (\case Just c -> k c m; Nothing -> k0 () m)
@@ -379,8 +399,33 @@ dumpMem mem = do
             _ ->
               collectDef a0 (nextAddr a) (slot:acc)
 
+data Slot
+  = SlotPrim Prim
+  | SlotCall Addr
+  | SlotRet
+  | SlotLit Value
+  | SlotChar Char
+
+data Value = VC Char | VN Numb | VA Addr deriving (Eq)
+
+type Numb = Word16
+
 data Addr = AP Prim | AN Numb
   deriving (Eq,Ord)
+
+instance Show Slot where
+  show = \case
+    SlotPrim p -> printf "*%s" (show p)
+    SlotCall a -> printf "*%s" (show a)
+    SlotRet -> printf "*ret"
+    SlotLit v -> printf "#%s" (show v)
+    SlotChar c -> printf "#'\\%02x'" (Char.ord c)
+
+instance Show Value where
+  show = \case
+    VC c -> printf "'%c'" c
+    VN n -> printf "%d" n
+    VA a -> show a
 
 instance Show Addr where
   show = \case
@@ -392,34 +437,18 @@ nextAddr = \case
   AN i -> AN (i+1)
   a -> error (show ("nextAddr",a))
 
-data Slot
-  = SlotPrim Prim
-  | SlotCall Addr
-  | SlotRet
-  | SlotLit Value
-  | SlotChar Char
-
-instance Show Slot where
-  show = \case
-    SlotPrim p -> printf "*%s" (show p)
-    SlotCall a -> printf "*%s" (show a)
-    SlotRet -> printf "*ret"
-    SlotLit v -> printf "#%s" (show v)
-    SlotChar c -> printf "#'%s'" [c]
+offsetAddr :: Addr -> Value -> Addr
+offsetAddr a v = case a of
+  AN i -> AN (i + numbOfValue v)
+  a -> error (show ("offsetAddr",a))
 
 valueOfSlot :: Slot -> Value
 valueOfSlot = \case
   SlotLit v -> v
   slot -> error (printf "unexpected slot: %s" (show slot))
 
-
-data Value = VC Char | VN Word16 | VA Addr deriving (Eq)
-
-instance Show Value where
-  show = \case
-    VC c -> printf "'%s'" [c]
-    VN n -> printf "%d" n
-    VA a -> show a
+isZero :: Value -> Bool
+isZero v = numbOfValue v == 0
 
 valueMinus :: Value -> Value -> Value
 valueMinus v1 v2 = valueOfNumb (numbOfValue v1 - numbOfValue v2)
@@ -429,8 +458,7 @@ valueEqual v1 v2 = valueOfBool (v1 == v2) -- not quite right
 
 valueOfBool :: Bool -> Value
 valueOfBool = VN . \case True -> vTrue; False-> vFalse
-  where vTrue = 65535; vFalse = 0
-
+  where vTrue = (0 - 1); vFalse = 0
 
 valueOfChar :: Char -> Value
 valueOfChar = VC
@@ -455,5 +483,3 @@ numbOfValue = \case
   VN n -> n
   VA (AN n) -> n -- Dodgy??
   v -> error (show ("numbOfValue",v))
-
-type Numb = Word16
