@@ -41,17 +41,17 @@ runInteraction = loop 0
         --printf "Remaining input: '%s'" inp
         pure ()
       IError s _m -> do
-        printf "\n**Error: %s" s
+        printf "\n**Error: %s\n" s
         --printf "\n%s\n" (seeFinalMachine _m)
         pure ()
       IDebug m i -> do
-        printf " %s " (show m)
+        printf "%s\n" (show m)
         loop n inp i
       IDebugMem m i -> do
         printf "\n%s\n" (seeFinalMachine m)
         loop n inp i
       IMessage mes i -> do
-        printf "**%s\n" mes
+        printf "\n**%s\n" mes
         loop n inp i
       ICR i -> do
         --putStrLn "" --(show ("ICR"))
@@ -81,6 +81,8 @@ data Prim
   | Zero | One | Minus | Add | Mul | Equal | LessThan
   | EntryComma | XtNext | XtName | Latest | IsHidden | IsImmediate
   | CrashOnlyDuringStartup
+  -- Not in dispatch table; available in dictionary only
+  | ImmediateFlip
   deriving (Eq,Ord,Show,Enum,Bounded)
 
 kernelEffect :: Eff ()
@@ -220,20 +222,48 @@ prim1 = \case
     v1 <- PsPop
     PsPush (valueLessThan v1 v2)
   EntryComma -> do
-    pure () -- TODO
+    name <- addrOfValue <$> PsPop
+    next <- E_Latest
+    let e = Entry { name, next, hidden = False, immediate = False }
+    a <- bump
+    UpdateMem a (SlotEntry e)
+    h <- E_Here
+    SetLatest h -- we point to the XT, not the entry itself
+    --Message (printf (show ("EntryComma",e,a,h)))
   XtNext -> do
-    undefined
+    v1 <- PsPop
+    slot <- LookupMem (prevAddr (addrOfValue v1))
+    let Entry{next} = entryOfSlot slot
+    --Message (show ("XtNext",slot))
+    PsPush (valueOfAddr next)
   XtName -> do
-    undefined
+    v1 <- PsPop
+    slot <- LookupMem (prevAddr (addrOfValue v1))
+    let Entry{name} = entryOfSlot slot
+    PsPush (valueOfAddr name)
   Latest -> do
-    --undefined
-    PsPush (valueOfAddr (AN 0)) -- no defs!
+    a <- E_Latest
+    PsPush (valueOfAddr a)
   IsHidden -> do
-    undefined
+    v1 <- PsPop
+    slot <- LookupMem (prevAddr (addrOfValue v1))
+    let Entry{hidden} = entryOfSlot slot
+    PsPush (valueOfBool hidden)
   IsImmediate -> do
-    undefined
+    v1 <- PsPop
+    slot <- LookupMem (prevAddr (addrOfValue v1))
+    let Entry{immediate} = entryOfSlot slot
+    PsPush (valueOfBool immediate)
   CrashOnlyDuringStartup -> do
-    pure () -- TODO: ??
+    Message "CrashOnlyDuringStartup"
+    E_Abort
+    --pure () -- TODO: ??
+  ImmediateFlip -> do
+    a <- (prevAddr . addrOfValue) <$> PsPop
+    entry@Entry{immediate} <- entryOfSlot <$> LookupMem a
+    --Message (show ("ImmediateFlip",a, entry))
+    UpdateMem a (SlotEntry entry { immediate = not immediate })
+
 
 bump :: Eff Addr -- TODO: prim effect?
 bump = do
@@ -251,10 +281,18 @@ exec a0 = do
     SlotRet -> do
       a <- RsPop
       exec a
-    SlotLit{} ->
-      error "exec: SLotLit"
-    SlotChar{} ->
-      error "exec: SlotChar"
+    SlotLit{} -> do
+      Message "exec: SLotLit"
+      E_Abort
+    SlotChar{} -> do
+      Message "exec: SlotChar"
+      E_Abort
+    SlotEntry{} -> do
+      Message "exec: SlotChar"
+      E_Abort
+    SlotString{} -> do
+      Message "exec: SlotString"
+      E_Abort
 
 instance Functor Eff where fmap = liftM
 instance Applicative Eff where pure = Return; (<*>) = ap
@@ -279,6 +317,8 @@ data Eff a where
   PsPop :: Eff Value
   RsPush :: Addr -> Eff ()
   RsPop :: Eff Addr
+  E_Latest :: Eff Addr
+  SetLatest :: Addr -> Eff ()
   E_HereAddr :: Eff Addr
   E_Here :: Eff Addr
   BumpHere :: Eff ()
@@ -313,6 +353,7 @@ runEff m e = loop m e k0
       UpdateDT c a -> do
         let Machine{dispatchTable=dt} = m
         k () m { dispatchTable = Map.insert c a dt }
+      LookupMem (AS s) -> k (SlotString s) m -- super duper special case
       LookupMem a -> do
         let Machine{mem} = m
         case Map.lookup a mem of
@@ -337,6 +378,11 @@ runEff m e = loop m e k0
         case rstack of
           [] -> error "RsPop[]"
           v:rstack -> k v m { rstack }
+      E_Latest -> do
+        let Machine{latest} = m
+        k latest m
+      SetLatest latest -> do
+        k () m { latest }
       E_HereAddr -> do
         let Machine{hereAddr=a} = m
         k a m
@@ -359,6 +405,7 @@ data Machine = Machine
   , mem :: Map Addr Slot
   , hereAddr :: Addr
   , tick :: Int
+  , latest :: Addr
   }
 
 instance Show Machine where
@@ -377,7 +424,12 @@ machine0 = Machine
   , mem = mem0
   , hereAddr = AN 0
   , tick = 0
+  , latest = latestK
   }
+
+latestK :: Addr
+latestK = AP ImmediateFlip
+
 
 dispatchTable0 :: Map Char Addr
 dispatchTable0 = Map.fromList
@@ -424,10 +476,31 @@ dispatchTable0 = Map.fromList
 type Mem = Map Addr Slot
 
 mem0 :: Mem
-mem0 = Map.fromList ([ (AP p, SlotPrim p) | p <- allPrims ]
-                     ++ [(AN 0, SlotLit (VA (AN 1)))]
-                    )
-  where allPrims = [minBound..maxBound]
+mem0 = Map.fromList $
+       [ (AP p, SlotPrim p) | p <- allPrims ]
+       ++ [(AN 0, SlotLit (VA (AN 1)))]
+       ++ primEntries
+  where
+    allPrims = [minBound..maxBound]
+
+
+primEntries :: [ (Addr, Slot) ] -- WIP! -- TODO: make this easy to extend
+primEntries =
+  [ (APE ImmediateFlip, SlotEntry $
+      Entry { name = AS "immediate^"
+            , next = AP Latest
+            , hidden = False
+            , immediate = False
+            })
+  , (APE Latest, SlotEntry $
+      Entry { name = AS "latest"
+            , next = AN 0
+            , hidden = False
+            , immediate = False
+            })
+  ]
+
+
 
 dumpMem :: Mem -> String
 dumpMem mem = do
@@ -454,12 +527,21 @@ data Slot
   | SlotRet
   | SlotLit Value
   | SlotChar Char
+  | SlotEntry Entry
+  | SlotString String
+
+data Entry = Entry
+  { name :: Addr
+  , next :: Addr
+  , hidden :: Bool
+  , immediate :: Bool
+  } deriving Show
 
 data Value = VC Char | VN Numb | VA Addr deriving (Eq)
 
 type Numb = Word16
 
-data Addr = AP Prim | AN Numb
+data Addr = AN Numb | AP Prim | APE Prim | AS String
   deriving (Eq,Ord)
 
 instance Show Slot where
@@ -469,6 +551,8 @@ instance Show Slot where
     SlotRet -> printf "*ret"
     SlotLit v -> printf "#%s" (show v)
     SlotChar c -> printf "#%s" (seeChar c)
+    SlotEntry e -> printf "[%s]" (show e)
+    SlotString s -> show s
 
 instance Show Value where
   show = \case
@@ -478,17 +562,26 @@ instance Show Value where
 
 instance Show Addr where
   show = \case
-    AP p -> printf "&%s" (show p)
     AN n -> printf "&%d" n
+    AP p -> printf "&%s" (show p)
+    APE p -> printf "&Entry:%s" (show p)
+    AS s -> printf "&%s" (show s)
 
 nextAddr :: Addr -> Addr
 nextAddr = \case
   AN i -> AN (i+1)
   a -> error (show ("nextAddr",a))
 
+prevAddr :: Addr -> Addr
+prevAddr = \case
+  AN i -> AN (i-1)
+  AP p -> APE p
+  a@APE{} -> error (show ("prevAddr",a))
+  a@AS{} -> error (show ("prevAddr",a))
+
 offsetAddr :: Addr -> Value -> Addr
 offsetAddr a v = case a of
-  AN i -> AN (i + numbOfValue v)
+  AN i -> AN (i + numbOfValue "offsetAddr" v)
   a -> error (show ("offsetAddr",a))
 
 valueOfSlot :: Slot -> Value
@@ -499,25 +592,42 @@ valueOfSlot = \case
 charOfSlot :: Slot -> Char
 charOfSlot = \case
   SlotChar c -> c
+  SlotString [] -> '\0'
+  SlotString (c:_) -> c
   slot -> error (printf "unexpected non-char slot: %s" (show slot))
 
+entryOfSlot :: Slot -> Entry
+entryOfSlot = \case
+  SlotEntry e -> e
+  slot -> error (printf "unexpected non-entry slot: %s" (show slot))
+
 isZero :: Value -> Bool
-isZero v = numbOfValue v == 0
+isZero = \case
+  VC c ->  c == '\0'
+  VN n -> n == 0
+  VA (AN n) -> n == 0
+  VA (AP{}) -> False
+  VA (APE{}) -> False
+  VA (AS{}) -> False
 
 valueMinus :: Value -> Value -> Value
-valueMinus v1 v2 = valueOfNumb (numbOfValue v1 - numbOfValue v2)
+valueMinus v1 v2 = valueOfNumb (numbOfValue "-A" v1 - numbOfValue "-B" v2)
 
 valueAdd :: Value -> Value -> Value
-valueAdd v1 v2 = valueOfNumb (numbOfValue v1 + numbOfValue v2)
+valueAdd v1 v2 =
+  case (v1,v2) of
+    (VA (AS (_:s)),VN 1) -> VA (AS s) -- OMG, such a hack
+    _ ->
+      valueOfNumb (numbOfValue "+A" v1 + numbOfValue "+B" v2)
 
 valueMul :: Value -> Value -> Value
-valueMul v1 v2 = valueOfNumb (numbOfValue v1 * numbOfValue v2)
+valueMul v1 v2 = valueOfNumb (numbOfValue "*A" v1 * numbOfValue "*B" v2)
 
 valueEqual :: Value -> Value -> Value
-valueEqual v1 v2 = valueOfBool (numbOfValue v1 == numbOfValue v2)
+valueEqual v1 v2 = valueOfBool (numbOfValue "=A" v1 == numbOfValue "=B" v2)
 
 valueLessThan :: Value -> Value -> Value
-valueLessThan v1 v2 = valueOfBool (numbOfValue v1 < numbOfValue v2)
+valueLessThan v1 v2 = valueOfBool (numbOfValue "<A" v1 < numbOfValue "<B" v2)
 
 valueOfBool :: Bool -> Value
 valueOfBool = VN . \case True -> vTrue; False-> vFalse
@@ -544,12 +654,14 @@ addrOfValue = \case
 valueOfNumb :: Numb -> Value
 valueOfNumb = VN
 
-numbOfValue :: Value -> Numb
-numbOfValue = \case
+numbOfValue :: String -> Value -> Numb
+numbOfValue tag = \case
   VC c -> fromIntegral (ord c)
   VN n -> n
   VA (AN n) -> n
-  VA (AP p) -> error (show ("numbOfValue/AP",p))
+  VA (AP p) -> error (show ("numbOfValue/AP",tag,p))
+  VA (APE p) -> error (show ("numbOfValue/APE",tag,p))
+  VA (AS s) -> error (show ("numbOfValue/AS",tag,s))
 
 seeChar :: Char -> String
 seeChar c = printf "'\\%02x'" (Char.ord c)
