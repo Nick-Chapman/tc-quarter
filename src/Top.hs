@@ -7,13 +7,72 @@ import Control.Monad (ap,liftM)
 import Data.Word (Word16)
 import Text.Printf (printf)
 import Data.Char as Char (chr,ord)
+import Data.Bits (xor)
 
 main :: IO ()
 main = do
-  putStrLn "*quarter-spec*"
-  --src <- readFile "/home/nic/code/quarter-forth/f/quarter.q"
-  src <- readFile "q+f"
+  putStrLn "*spec-quarter*"
+  q <- readFile "/home/nic/code/quarter-forth/f/quarter.q"
+  f <- readFile "/home/nic/code/quarter-forth/f/forth.f"
+  let src = concat [q,f]
   go src
+
+data Prim
+  = Kdx_K | Kdx_D | Kdx_X -- TODO: meh
+  | Key | Dispatch | SetTabEntry
+  | Execute | Exit | Jump
+  | Emit | CR | Nop
+  | HerePointer
+  | CompileComma | RetComma | Comma | C_Comma
+  | Lit | Branch0 | Branch
+  | Fetch | Store
+  | C_Fetch
+  | Dup | Swap | Over | Drop
+  | Zero | One | Minus | Add | Mul | Equal | LessThan | Xor
+  | EntryComma | XtNext | XtName | Latest | IsHidden | IsImmediate
+  | Crash
+  | CrashOnlyDuringStartup
+  -- Not in dispatch table; available in dictionary only
+  | ImmediateFlip
+  | FromReturnStack
+  deriving (Eq,Ord,Show,Enum,Bounded)
+
+kernelDictionary :: [(String,Prim)]
+kernelDictionary =
+  [ ("immediate^", ImmediateFlip)
+  , ("latest", Latest)
+  , ("lit", Lit)
+  , (",", Comma)
+  , ("compile,", CompileComma)
+  , ("jump", Jump)
+  , ("here-pointer", HerePointer)
+  , ("@", Fetch)
+  , ("0", Zero)
+  , ("dup", Dup)
+  , ("swap", Swap)
+  , ("-", Minus)
+  , ("!", Store)
+  , ("0branch", Branch0)
+  , ("branch", Branch)
+  , ("1", One)
+  , ("+", Add)
+  , ("*", Mul)
+  , ("<", LessThan)
+  , ("xor", Xor)
+  , ("key", Key)
+  , ("drop", Drop)
+  , ("c,", C_Comma)
+  , ("exit", Exit)
+  , ("c@", C_Fetch)
+  , ("=", Equal)
+  , ("entry,", EntryComma)
+  , ("ret,", RetComma)
+  , ("r>", FromReturnStack)
+  , ("emit", Emit)
+  , ("execute", Execute)
+  , ("cr", CR)
+  , ("crash", Crash)
+  ]
 
 go :: String -> IO ()
 go s = do
@@ -51,39 +110,21 @@ runInteraction = loop 0
         printf "\n%s\n" (seeFinalMachine m)
         loop n inp i
       IMessage mes i -> do
-        printf "\n**%s\n" mes
+        printf "**%s\n" mes
         loop n inp i
       ICR i -> do
-        --putStrLn "" --(show ("ICR"))
+        putStrLn ""
         loop n inp i
       IPut _c i -> do
-        printf "PUT: %c\n" _c --putStr ['(',_c,')'] --(show ("IPut:",c))
+        --printf "PUT: %c\n" _c
+        printf "%c" _c
         loop n inp i
       IGet f -> do
         case inp of
           [] -> loop (n+1) inp (f Nothing)
           c:inp -> do
-            --printf "\n%c\n" c
-            printf "%c" c
+            --printf "%c" c -- echo-on
             loop (n+1) inp (f (Just c))
-
-data Prim
-  = Kdx_K | Kdx_D | Kdx_X -- TODO: meh
-  | Key | Dispatch | SetTabEntry
-  | Execute | Exit | Jump
-  | Emit | CR | Nop
-  | HerePointer
-  | CompileComma | CompileRet | Comma | C_Comma
-  | Lit | Branch0
-  | Fetch | Store
-  | C_Fetch
-  | Dup | Swap | Over | Drop
-  | Zero | One | Minus | Add | Mul | Equal | LessThan
-  | EntryComma | XtNext | XtName | Latest | IsHidden | IsImmediate
-  | CrashOnlyDuringStartup
-  -- Not in dispatch table; available in dictionary only
-  | ImmediateFlip
-  deriving (Eq,Ord,Show,Enum,Bounded)
 
 kernelEffect :: Eff ()
 kernelEffect = prim Kdx_K
@@ -143,7 +184,7 @@ prim1 = \case
     a <- bump
     v <- PsPop
     UpdateMem a (SlotCall (addrOfValue v))
-  CompileRet -> do
+  RetComma -> do
     a <- bump
     UpdateMem a SlotRet
   Comma -> do
@@ -167,6 +208,8 @@ prim1 = \case
     v <- PsPop
     let a' = if isZero v then offsetAddr a (valueOfSlot slot) else nextAddr a
     RsPush a'
+  Branch -> do
+    undefined -- TODO, NEXT
   Fetch -> do
     v1 <- PsPop
     slot <- LookupMem (addrOfValue v1)
@@ -221,6 +264,10 @@ prim1 = \case
     v2 <- PsPop
     v1 <- PsPop
     PsPush (valueLessThan v1 v2)
+  Xor -> do
+    v2 <- PsPop
+    v1 <- PsPop
+    PsPush (xorLessThan v1 v2)
   EntryComma -> do
     name <- addrOfValue <$> PsPop
     next <- E_Latest
@@ -255,14 +302,15 @@ prim1 = \case
     let Entry{immediate} = entryOfSlot slot
     PsPush (valueOfBool immediate)
   CrashOnlyDuringStartup -> do
-    Message "CrashOnlyDuringStartup"
-    E_Abort
-    --pure () -- TODO: ??
+    Abort "CrashOnlyDuringStartup"
+  Crash -> do
+    Abort "Crash"
   ImmediateFlip -> do
     a <- (prevAddr . addrOfValue) <$> PsPop
     entry@Entry{immediate} <- entryOfSlot <$> LookupMem a
-    --Message (show ("ImmediateFlip",a, entry))
     UpdateMem a (SlotEntry entry { immediate = not immediate })
+  FromReturnStack -> do
+    undefined
 
 
 bump :: Eff Addr -- TODO: prim effect?
@@ -281,18 +329,14 @@ exec a0 = do
     SlotRet -> do
       a <- RsPop
       exec a
-    SlotLit{} -> do
-      Message "exec: SLotLit"
-      E_Abort
-    SlotChar{} -> do
-      Message "exec: SlotChar"
-      E_Abort
+    SlotLit{} ->
+      Abort "exec: SLotLit"
+    SlotChar{} ->
+      Abort "exec: SlotChar"
     SlotEntry{} -> do
-      Message "exec: SlotChar"
-      E_Abort
-    SlotString{} -> do
-      Message "exec: SlotString"
-      E_Abort
+      Abort "exec: SlotChar"
+    SlotString{} ->
+      Abort "exec: SlotString"
 
 instance Functor Eff where fmap = liftM
 instance Applicative Eff where pure = Return; (<*>) = ap
@@ -304,7 +348,7 @@ data Eff a where
   Debug :: Eff ()
   DebugMem :: Eff ()
   Message :: String -> Eff ()
-  E_Abort :: Eff ()
+  Abort :: String -> Eff ()
   Tick :: Eff Int
   Get :: Eff Char
   Put :: Char -> Eff ()
@@ -338,7 +382,7 @@ runEff m e = loop m e k0
       Debug -> do IDebug m $ k () m
       DebugMem -> do IDebugMem m $ k () m
       Message s -> do IMessage s $ k () m
-      E_Abort -> IError "Abort" m
+      Abort mes -> IError mes m
       Tick -> do
         let Machine{tick} = m
         k tick m { tick = tick + 1 }
@@ -403,7 +447,7 @@ data Machine = Machine
   , rstack :: [Addr]
   , dispatchTable :: Map Char Addr
   , mem :: Map Addr Slot
-  , hereAddr :: Addr
+  , hereAddr :: Addr -- TODO: use special structured address
   , tick :: Int
   , latest :: Addr
   }
@@ -444,7 +488,7 @@ dispatchTable0 = Map.fromList
   , ('0', AP Zero)
   , ('1', AP One)
   , (':', AP SetTabEntry)
-  , (';', AP CompileRet)
+  , (';', AP RetComma)
   , ('<', AP LessThan)
   , ('=', AP Equal)
   , ('>', AP CompileComma)
@@ -478,29 +522,18 @@ type Mem = Map Addr Slot
 mem0 :: Mem
 mem0 = Map.fromList $
        [ (AP p, SlotPrim p) | p <- allPrims ]
-       ++ [(AN 0, SlotLit (VA (AN 1)))]
+       ++ [(AN 0, SlotLit (VA (AN 1)))] -- for here-pointer. TODO: yuck
        ++ primEntries
   where
+    primEntries :: [(Addr, Slot)]
+    primEntries =
+      [ (APE prim,
+         SlotEntry (Entry { name = AS name, next, hidden = False, immediate = False })
+        )
+      | ((name,prim),next) <-
+        zip kernelDictionary $ [ AP prim | (_,prim) <- tail kernelDictionary ] ++ [ AN 0 ]
+      ]
     allPrims = [minBound..maxBound]
-
-
-primEntries :: [ (Addr, Slot) ] -- WIP! -- TODO: make this easy to extend
-primEntries =
-  [ (APE ImmediateFlip, SlotEntry $
-      Entry { name = AS "immediate^"
-            , next = AP Latest
-            , hidden = False
-            , immediate = False
-            })
-  , (APE Latest, SlotEntry $
-      Entry { name = AS "latest"
-            , next = AN 0
-            , hidden = False
-            , immediate = False
-            })
-  ]
-
-
 
 dumpMem :: Mem -> String
 dumpMem mem = do
@@ -628,6 +661,9 @@ valueEqual v1 v2 = valueOfBool (numbOfValue "=A" v1 == numbOfValue "=B" v2)
 
 valueLessThan :: Value -> Value -> Value
 valueLessThan v1 v2 = valueOfBool (numbOfValue "<A" v1 < numbOfValue "<B" v2)
+
+xorLessThan :: Value -> Value -> Value
+xorLessThan v1 v2 = valueOfNumb (numbOfValue "xA" v1 `xor` numbOfValue "xB" v2)
 
 valueOfBool :: Bool -> Value
 valueOfBool = VN . \case True -> vTrue; False-> vFalse
