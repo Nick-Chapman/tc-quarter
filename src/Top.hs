@@ -21,10 +21,14 @@ main = do
         , "tools.f"
         , "examples.f"
         , "primes.f"
+
+        , "bf.f"
+        , "factor.f"
+        , "test-bf-factor.f"
+
         ]
     ]
---  go (concat xs ++ " 1 2 3 .s cr 4 5 6 .s cr ")
-  go (concat xs ++ " z cr char A char B char C rot . cr . cr . cr ")
+  go (concat xs)
 
 data Prim
   = Kdx_K | Kdx_D | Kdx_X -- TODO: meh
@@ -55,6 +59,8 @@ data Prim
   | ReturnStackPointer
   | ReturnStackPointerBase
   | GetKey
+  | Time
+  | StartupIsComplete
   deriving (Eq,Ord,Show,Enum,Bounded)
 
 quarterDispatch :: [(Char,Prim)]
@@ -151,6 +157,8 @@ kernelDictionary =
   , ("rsp", ReturnStackPointer)
   , ("rsp0", ReturnStackPointerBase)
   , ("get-key", GetKey)
+  , ("time", Time)
+  , ("startup-is-complete", StartupIsComplete)
   ]
 
 go :: String -> IO ()
@@ -161,7 +169,7 @@ go s = do
   runInteraction s i
 
 data Interaction
-  = IHalt
+  = IHalt Machine
   | IError String Machine
   | ICR Interaction
   | IPut Char Interaction
@@ -175,8 +183,9 @@ runInteraction = loop 0
   where
     loop :: Int -> String -> Interaction -> IO ()
     loop n inp = \case -- n counts the gets
-      IHalt -> do
-        --printf "Remaining input: '%s'" inp
+      IHalt _m -> do
+        --printf "Remaining input: '%s'\n" inp
+        --printf "\n%s\n" (seeFinalMachine _m)
         pure ()
       IError s _m -> do
         printf "\n**Error: %s\n" s
@@ -308,6 +317,10 @@ prim1 = \case
     vLoc <- Pop
     v <- Pop
     UpdateMem (addrOfValue vLoc) (SlotLit v)
+  C_Store -> do
+    vLoc <- Pop
+    v <- Pop
+    UpdateMem (addrOfValue vLoc) (SlotChar (charOfValue v))
   Dup -> do
     v <- Pop
     Push v
@@ -416,8 +429,6 @@ prim1 = \case
     Push d
   KeyNonBlocking -> do
     undefined
-  C_Store -> do
-    undefined
   BitShiftRight -> do
     a <- Pop
     Push (valueShiftRight a)
@@ -431,6 +442,11 @@ prim1 = \case
     undefined
   GetKey -> do
     Push (valueOfAddr (AP Key))
+  Time -> do
+    Push (valueOfNumb 123) -- TODO: dummy
+    Push (valueOfNumb 456) -- TODO: dummy
+  StartupIsComplete -> do
+    undefined
 
 
 bump :: Eff Addr -- TODO: prim effect?
@@ -491,9 +507,7 @@ runEff :: Machine -> Eff () -> Interaction
 runEff m e = loop m e k0
   where
     k0 :: () -> Machine -> Interaction
-    k0 () _m = do
-      --IDebugMem _m $
-        IHalt
+    k0 () m = IHalt m
 
     loop :: Machine -> Eff a -> (a -> Machine -> Interaction) -> Interaction
     loop m e k = case e of
@@ -784,4 +798,7 @@ numbOfValue tag = \case
   VA (AS s) -> error (show ("numbOfValue/AS",tag,s))
 
 seeChar :: Char -> String
-seeChar c = printf "'\\%02x'" (Char.ord c)
+seeChar c = if
+  | n>=32 && n<=126 -> printf "'%c'" c
+  | otherwise -> printf "'\\%02x'" n
+  where n = Char.ord c
