@@ -673,8 +673,8 @@ dumpMem mem = do
 slotSize :: Slot -> Numb
 slotSize = \case
   SlotRet -> 1
-  SlotCall{} -> 3 -- should be 3
-  SlotLit{} -> 2 -- should be 2 -- one regression tests needs this
+  SlotCall{} -> 3
+  SlotLit{} -> 2
   SlotChar{} -> 1
   SlotEntry{} -> 1 -- assumed by prevAddr -- TODO: fix!
   SlotString{} -> undefined -- whatever!
