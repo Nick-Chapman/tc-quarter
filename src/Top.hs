@@ -472,23 +472,24 @@ paramStackBase :: Numb
 paramStackBase = 0
 
 exec :: Addr -> Eff ()
-exec a0 = do
-  LookupMem a0 >>= \case
-    SlotPrim p -> prim p
-    slot@(SlotCall a) -> do
-      RPush (valueOfAddr (offsetAddr (slotSize slot) a0))
-      exec a
-    SlotRet -> do
-      v <- RPop
-      exec (addrOfValue v)
-    SlotLit{} ->
-      Abort "exec: SLotLit"
-    SlotChar{} ->
-      Abort "exec: SlotChar"
-    SlotEntry{} -> do
-      Abort "exec: SlotChar"
-    SlotString{} ->
-      Abort "exec: SlotString"
+exec = \case
+  AP p -> prim p
+  a0 -> do
+    LookupMem a0 >>= \case
+      slot@(SlotCall a) -> do
+        RPush (valueOfAddr (offsetAddr (slotSize slot) a0))
+        exec a
+      SlotRet -> do
+        v <- RPop
+        exec (addrOfValue v)
+      SlotLit{} ->
+        Abort "exec: SLotLit"
+      SlotChar{} ->
+        Abort "exec: SlotChar"
+      SlotEntry{} -> do
+        Abort "exec: SlotChar"
+      SlotString{} ->
+        Abort "exec: SlotString"
 
 instance Functor Eff where fmap = liftM
 instance Applicative Eff where pure = Return; (<*>) = ap
@@ -635,8 +636,7 @@ hereStart = AN 0
 
 mem0 :: Mem
 mem0 = Map.fromList $
-       [ (AP p, SlotPrim p) | p <- allPrims ]
-       ++ [(addrOfHere, SlotLit (VA hereStart))]
+       [(addrOfHere, SlotLit (VA hereStart))]
        ++ primEntries
   where
     primEntries :: [(Addr, Slot)]
@@ -647,7 +647,6 @@ mem0 = Map.fromList $
       | ((name,prim),next) <-
         zip kernelDictionary $ [ AP prim | (_,prim) <- tail kernelDictionary ] ++ [ AN 0 ]
       ]
-    allPrims = [minBound..maxBound]
 
 dumpMem :: Mem -> String
 dumpMem mem = do
@@ -675,7 +674,6 @@ slotSize :: Slot -> Numb
 slotSize = \case
   SlotRet -> 1
   SlotCall{} -> 3 -- should be 3
-  SlotPrim{} -> undefined -- ???
   SlotLit{} -> 2 -- should be 2 -- one regression tests needs this
   SlotChar{} -> 1
   SlotEntry{} -> 1 -- assumed by prevAddr -- TODO: fix!
@@ -684,7 +682,6 @@ slotSize = \case
 data Slot
   = SlotRet
   | SlotCall Addr
-  | SlotPrim Prim -- TODO: kill??
   | SlotLit Value
   | SlotChar Char
   | SlotEntry Entry
@@ -706,7 +703,6 @@ data Addr = AN Numb | AP Prim | APE Prim | AS String | AH -- | AHplus1
 
 instance Show Slot where
   show = \case
-    SlotPrim p -> printf "*%s" (show p)
     SlotCall a -> printf "*%s" (show a)
     SlotRet -> printf "*ret"
     SlotLit v -> printf "#%s" (show v)
