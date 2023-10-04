@@ -14,6 +14,8 @@ main = do
   putStrLn "*spec-quarter*"
   q <- readFile "/home/nic/code/quarter-forth/f/quarter.q"
   f <- readFile "/home/nic/code/quarter-forth/f/forth.f"
+  --x <- readFile "/home/nic/code/quarter-forth/f/examples.f"
+  --x <- readFile "examples.f"
   let src = concat [q,f]
   go src
 
@@ -29,17 +31,64 @@ data Prim
   | C_Fetch
   | Dup | Swap | Over | Drop
   | Zero | One | Minus | Add | Mul | Equal | LessThan | Xor
-  | EntryComma | XtNext | XtName | Latest | IsHidden | IsImmediate
+  | EntryComma | XtToNext | XtToName | Latest | IsHidden | IsImmediate
   | Crash
   | CrashOnlyDuringStartup
   -- Not in dispatch table; available in dictionary only
-  | ImmediateFlip
+  | FlipImmediate
+  | FlipHidden
   | FromReturnStack
+  | ToReturnStack
+  | DivMod
+  | KeyNonBlocking
+  | C_Store
   deriving (Eq,Ord,Show,Enum,Bounded)
+
+quarterDispatch :: [(Char,Prim)]
+quarterDispatch =
+  [ ('\n',Nop)
+  , (' ', Nop)
+  , ('!', Store)
+  , ('*', Mul)
+  , ('+', Add)
+  , (',', Comma)
+  , ('-', Minus)
+  , ('.', Emit)
+  , ('0', Zero)
+  , ('1', One)
+  , (':', SetTabEntry)
+  , (';', RetComma)
+  , ('<', LessThan)
+  , ('=', Equal)
+  , ('>', CompileComma)
+  , ('?', Dispatch)
+  , ('@', Fetch)
+  , ('A', CrashOnlyDuringStartup)
+  , ('B', Branch0)
+  , ('C', C_Fetch)
+  , ('D', Dup)
+  , ('E', EntryComma)
+  , ('G', XtToNext)
+  , ('H', HerePointer)
+  , ('I', IsImmediate)
+  , ('J', Jump)
+  , ('L', Lit)
+  , ('M', CR)
+  , ('N', XtToName)
+  , ('O', Over)
+  , ('P', Drop)
+  , ('V', Execute)
+  , ('W', Swap)
+  , ('X', Exit)
+  , ('Y', IsHidden)
+  , ('Z', Latest)
+  , ('^', Key)
+  , ('`', C_Comma)
+  ]
 
 kernelDictionary :: [(String,Prim)]
 kernelDictionary =
-  [ ("immediate^", ImmediateFlip)
+  [ ("immediate^", FlipImmediate)
   , ("latest", Latest)
   , ("lit", Lit)
   , (",", Comma)
@@ -72,6 +121,17 @@ kernelDictionary =
   , ("execute", Execute)
   , ("cr", CR)
   , ("crash", Crash)
+  , (">r", ToReturnStack)
+  , ("hidden?", IsHidden)
+  , ("xt->name", XtToName)
+  , ("over", Over)
+  , ("xt->next", XtToNext)
+  , ("hidden^", FlipHidden)
+  , ("/mod", DivMod)
+  , ("key?", KeyNonBlocking)
+  , ("c!", C_Store)
+  , ("crash-only-during-startup", CrashOnlyDuringStartup)
+  , ("immediate?", IsImmediate)
   ]
 
 go :: String -> IO ()
@@ -209,7 +269,10 @@ prim1 = \case
     let a' = if isZero v then offsetAddr a (valueOfSlot slot) else nextAddr a
     RsPush a'
   Branch -> do
-    undefined -- TODO, NEXT
+    a <- RsPop
+    slot <- LookupMem a
+    let a' = offsetAddr a (valueOfSlot slot)
+    RsPush a'
   Fetch -> do
     v1 <- PsPop
     slot <- LookupMem (addrOfValue v1)
@@ -276,14 +339,12 @@ prim1 = \case
     UpdateMem a (SlotEntry e)
     h <- E_Here
     SetLatest h -- we point to the XT, not the entry itself
-    --Message (printf (show ("EntryComma",e,a,h)))
-  XtNext -> do
+  XtToNext -> do
     v1 <- PsPop
     slot <- LookupMem (prevAddr (addrOfValue v1))
     let Entry{next} = entryOfSlot slot
-    --Message (show ("XtNext",slot))
     PsPush (valueOfAddr next)
-  XtName -> do
+  XtToName -> do
     v1 <- PsPop
     slot <- LookupMem (prevAddr (addrOfValue v1))
     let Entry{name} = entryOfSlot slot
@@ -305,11 +366,27 @@ prim1 = \case
     Abort "CrashOnlyDuringStartup"
   Crash -> do
     Abort "Crash"
-  ImmediateFlip -> do
+  FlipImmediate -> do
     a <- (prevAddr . addrOfValue) <$> PsPop
     entry@Entry{immediate} <- entryOfSlot <$> LookupMem a
     UpdateMem a (SlotEntry entry { immediate = not immediate })
+  FlipHidden -> do
+    a <- (prevAddr . addrOfValue) <$> PsPop
+    entry@Entry{hidden} <- entryOfSlot <$> LookupMem a
+    UpdateMem a (SlotEntry entry { hidden = not hidden })
   FromReturnStack -> do
+    a <- RsPop
+    PsPush (valueOfAddr a)
+    pure ()
+  ToReturnStack -> do
+    v <- PsPop
+    -- TODO: must allow any value, not just addresses on return stack
+    RsPush (addrOfValue v)
+  DivMod -> do
+    undefined
+  KeyNonBlocking -> do
+    undefined
+  C_Store -> do
     undefined
 
 
@@ -464,58 +541,14 @@ machine0 :: Machine
 machine0 = Machine
   { pstack = []
   , rstack = []
-  , dispatchTable = dispatchTable0
+  , dispatchTable =
+      Map.fromList [ (c,AP p)
+                   | (c,p) <- quarterDispatch ]
   , mem = mem0
   , hereAddr = AN 0
   , tick = 0
-  , latest = latestK
+  , latest = AP $ snd (head kernelDictionary)
   }
-
-latestK :: Addr
-latestK = AP ImmediateFlip
-
-
-dispatchTable0 :: Map Char Addr
-dispatchTable0 = Map.fromList
-  [ ('\n',AP Nop)
-  , (' ', AP Nop)
-  , ('!', AP Store)
-  , ('*', AP Mul)
-  , ('+', AP Add)
-  , (',', AP Comma)
-  , ('-', AP Minus)
-  , ('.', AP Emit)
-  , ('0', AP Zero)
-  , ('1', AP One)
-  , (':', AP SetTabEntry)
-  , (';', AP RetComma)
-  , ('<', AP LessThan)
-  , ('=', AP Equal)
-  , ('>', AP CompileComma)
-  , ('?', AP Dispatch)
-  , ('@', AP Fetch)
-  , ('A', AP CrashOnlyDuringStartup)
-  , ('B', AP Branch0)
-  , ('C', AP C_Fetch)
-  , ('D', AP Dup)
-  , ('E', AP EntryComma)
-  , ('G', AP XtNext)
-  , ('H', AP HerePointer)
-  , ('I', AP IsImmediate)
-  , ('J', AP Jump)
-  , ('L', AP Lit)
-  , ('M', AP CR)
-  , ('N', AP XtName)
-  , ('O', AP Over)
-  , ('P', AP Drop)
-  , ('V', AP Execute)
-  , ('W', AP Swap)
-  , ('X', AP Exit)
-  , ('Y', AP IsHidden)
-  , ('Z', AP Latest)
-  , ('^', AP Key)
-  , ('`', AP C_Comma)
-  ]
 
 type Mem = Map Addr Slot
 
