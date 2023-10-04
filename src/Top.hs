@@ -8,16 +8,22 @@ import Data.Word (Word16)
 import Text.Printf (printf)
 import Data.Char as Char (chr,ord)
 import Data.Bits (xor)
+import System.IO (hFlush,stdout)
 
 main :: IO ()
 main = do
   putStrLn "*spec-quarter*"
-  q <- readFile "/home/nic/code/quarter-forth/f/quarter.q"
-  f <- readFile "/home/nic/code/quarter-forth/f/forth.f"
-  --x <- readFile "/home/nic/code/quarter-forth/f/examples.f"
-  --x <- readFile "examples.f"
-  let src = concat [q,f]
-  go src
+  xs <- sequence
+    [ readFile ("/home/nic/code/quarter-forth/f/"++f)
+    | f <-
+        [ "quarter.q"
+        , "forth.f"
+--        , "tools.f"
+        , "examples.f"
+        , "primes.f"
+        ]
+    ]
+  go (concat xs ++ " hex z cr ")
 
 data Prim
   = Kdx_K | Kdx_D | Kdx_X -- TODO: meh
@@ -42,6 +48,12 @@ data Prim
   | DivMod
   | KeyNonBlocking
   | C_Store
+  | BitShiftRight
+  | StackPointer
+  | StackPointerBase
+  | ReturnStackPointer
+  | ReturnStackPointerBase
+  | GetKey
   deriving (Eq,Ord,Show,Enum,Bounded)
 
 quarterDispatch :: [(Char,Prim)]
@@ -132,6 +144,12 @@ kernelDictionary =
   , ("c!", C_Store)
   , ("crash-only-during-startup", CrashOnlyDuringStartup)
   , ("immediate?", IsImmediate)
+  , ("/2", BitShiftRight)
+  , ("sp", StackPointer)
+  , ("sp0", StackPointerBase)
+  , ("rsp", ReturnStackPointer)
+  , ("rsp0", ReturnStackPointerBase)
+  , ("get-key", GetKey)
   ]
 
 go :: String -> IO ()
@@ -177,6 +195,7 @@ runInteraction = loop 0
         loop n inp i
       IPut _c i -> do
         --printf "PUT: %c\n" _c
+        _flush
         printf "%c" _c
         loop n inp i
       IGet f -> do
@@ -185,6 +204,9 @@ runInteraction = loop 0
           c:inp -> do
             --printf "%c" c -- echo-on
             loop (n+1) inp (f (Just c))
+
+    _flush = hFlush stdout
+
 
 kernelEffect :: Eff ()
 kernelEffect = prim Kdx_K
@@ -330,7 +352,7 @@ prim1 = \case
   Xor -> do
     v2 <- PsPop
     v1 <- PsPop
-    PsPush (xorLessThan v1 v2)
+    PsPush (valueXor v1 v2)
   EntryComma -> do
     name <- addrOfValue <$> PsPop
     next <- E_Latest
@@ -374,20 +396,45 @@ prim1 = \case
     a <- (prevAddr . addrOfValue) <$> PsPop
     entry@Entry{hidden} <- entryOfSlot <$> LookupMem a
     UpdateMem a (SlotEntry entry { hidden = not hidden })
+
+  -- I think these imp of r> and >r are WRONG.
+  -- One level too shallow. See kernel.asm
   FromReturnStack -> do
+    b <- RsPop
     a <- RsPop
     PsPush (valueOfAddr a)
+    RsPush b
     pure ()
+
   ToReturnStack -> do
-    v <- PsPop
-    -- TODO: must allow any value, not just addresses on return stack
-    RsPush (addrOfValue v)
+    b <- RsPop
+    a <- PsPop
+    -- TODO: allow any value, not just addresses
+    RsPush (addrOfValue a)
+    RsPush b
   DivMod -> do
-    undefined
+    b <- PsPop
+    a <- PsPop
+    let (d,m) = valueDivMod a b
+    PsPush m
+    PsPush d
   KeyNonBlocking -> do
     undefined
   C_Store -> do
     undefined
+  BitShiftRight -> do
+    a <- PsPop
+    PsPush (valueShiftRight a)
+  StackPointer -> do
+    undefined
+  StackPointerBase -> do
+    undefined
+  ReturnStackPointer -> do
+    undefined
+  ReturnStackPointerBase -> do
+    undefined
+  GetKey -> do
+    PsPush (valueOfAddr (AP Key))
 
 
 bump :: Eff Addr -- TODO: prim effect?
@@ -434,6 +481,9 @@ data Eff a where
   UpdateDT :: Char -> Addr -> Eff ()
   LookupMem :: Addr -> Eff Slot
   UpdateMem :: Addr -> Slot -> Eff ()
+  -- TODO: improve clarity of Ps/Rs
+  -- rename -> Param/Return
+  -- or maybe have no prefix for param-stack
   PsPush :: Value -> Eff ()
   PsPop :: Eff Value
   RsPush :: Addr -> Eff ()
@@ -695,8 +745,16 @@ valueEqual v1 v2 = valueOfBool (numbOfValue "=A" v1 == numbOfValue "=B" v2)
 valueLessThan :: Value -> Value -> Value
 valueLessThan v1 v2 = valueOfBool (numbOfValue "<A" v1 < numbOfValue "<B" v2)
 
-xorLessThan :: Value -> Value -> Value
-xorLessThan v1 v2 = valueOfNumb (numbOfValue "xA" v1 `xor` numbOfValue "xB" v2)
+valueXor :: Value -> Value -> Value
+valueXor v1 v2 = valueOfNumb (numbOfValue "xA" v1 `xor` numbOfValue "xB" v2)
+
+valueDivMod :: Value -> Value -> (Value,Value)
+valueDivMod v1 v2 = do
+  ( valueOfNumb (numbOfValue "dA" v1 `div` numbOfValue "dB" v2) ,
+    valueOfNumb (numbOfValue "mA" v1 `mod` numbOfValue "mB" v2) )
+
+valueShiftRight :: Value -> Value
+valueShiftRight v1 = valueOfNumb (numbOfValue "sA" v1 `div` 2)
 
 valueOfBool :: Bool -> Value
 valueOfBool = VN . \case True -> vTrue; False-> vFalse
