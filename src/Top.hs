@@ -18,12 +18,13 @@ main = do
     | f <-
         [ "quarter.q"
         , "forth.f"
---        , "tools.f"
+        , "tools.f"
         , "examples.f"
         , "primes.f"
         ]
     ]
-  go (concat xs ++ " hex z cr ")
+--  go (concat xs ++ " 1 2 3 .s cr 4 5 6 .s cr ")
+  go (concat xs ++ " z cr char A char B char C rot . cr . cr . cr ")
 
 data Prim
   = Kdx_K | Kdx_D | Kdx_X -- TODO: meh
@@ -217,19 +218,19 @@ prim p = do
   _i <- Tick
   --Message (printf " {%d} %s" _i (show p))
   prim1 p
-  a <- RsPop
-  exec a
+  v <- RsPop
+  exec (addrOfValue v)
 
 prim1 :: Prim -> Eff ()
 prim1 = \case
   Kdx_K -> do
-    RsPush (AP Kdx_D)
+    RsPush (valueOfAddr (AP Kdx_D))
     prim Key
   Kdx_D -> do
-    RsPush (AP Kdx_X)
+    RsPush (valueOfAddr (AP Kdx_X))
     prim Dispatch
   Kdx_X -> do
-    RsPush (AP Kdx_K)
+    RsPush (valueOfAddr (AP Kdx_K))
     prim Execute
   Key -> do
     c <- Get
@@ -251,7 +252,7 @@ prim1 = \case
   Jump -> do
     _ <- RsPop
     v <- PsPop
-    RsPush (addrOfValue v)
+    RsPush v
   Emit -> do
     v <- PsPop
     Put (charOfValue v)
@@ -278,23 +279,23 @@ prim1 = \case
     a <- bump
     UpdateMem a (SlotChar (charOfValue v))
   Lit -> do
-    a <- RsPop
+    a <- addrOfValue <$> RsPop
     slot <- LookupMem a
     let v = valueOfSlot slot
     let a' = nextAddr a
     PsPush v
-    RsPush a'
+    RsPush (valueOfAddr a')
   Branch0 -> do
-    a <- RsPop
+    a <- addrOfValue <$> RsPop
     slot <- LookupMem a
     v <- PsPop
     let a' = if isZero v then offsetAddr a (valueOfSlot slot) else nextAddr a
-    RsPush a'
+    RsPush (valueOfAddr a')
   Branch -> do
-    a <- RsPop
+    a <- addrOfValue <$> RsPop
     slot <- LookupMem a
     let a' = offsetAddr a (valueOfSlot slot)
-    RsPush a'
+    RsPush (valueOfAddr a')
   Fetch -> do
     v1 <- PsPop
     slot <- LookupMem (addrOfValue v1)
@@ -396,21 +397,16 @@ prim1 = \case
     a <- (prevAddr . addrOfValue) <$> PsPop
     entry@Entry{hidden} <- entryOfSlot <$> LookupMem a
     UpdateMem a (SlotEntry entry { hidden = not hidden })
-
-  -- I think these imp of r> and >r are WRONG.
-  -- One level too shallow. See kernel.asm
   FromReturnStack -> do
     b <- RsPop
     a <- RsPop
-    PsPush (valueOfAddr a)
+    PsPush a
     RsPush b
     pure ()
-
   ToReturnStack -> do
     b <- RsPop
     a <- PsPop
-    -- TODO: allow any value, not just addresses
-    RsPush (addrOfValue a)
+    RsPush a
     RsPush b
   DivMod -> do
     b <- PsPop
@@ -448,11 +444,11 @@ exec a0 = do
   LookupMem a0 >>= \case
     SlotPrim p -> prim p
     SlotCall a -> do
-      RsPush (nextAddr a0)
+      RsPush (valueOfAddr (nextAddr a0))
       exec a
     SlotRet -> do
-      a <- RsPop
-      exec a
+      v <- RsPop
+      exec (addrOfValue v)
     SlotLit{} ->
       Abort "exec: SLotLit"
     SlotChar{} ->
@@ -486,8 +482,8 @@ data Eff a where
   -- or maybe have no prefix for param-stack
   PsPush :: Value -> Eff ()
   PsPop :: Eff Value
-  RsPush :: Addr -> Eff ()
-  RsPop :: Eff Addr
+  RsPush :: Value -> Eff ()
+  RsPop :: Eff Value
   E_Latest :: Eff Addr
   SetLatest :: Addr -> Eff ()
   E_HereAddr :: Eff Addr
@@ -541,9 +537,9 @@ runEff m e = loop m e k0
         case pstack of
           [] -> error "PsPop[]"
           v:pstack -> k v m { pstack }
-      RsPush a -> do
+      RsPush v -> do
         let Machine{rstack} = m
-        k () m { rstack = a:rstack }
+        k () m { rstack = v:rstack }
       RsPop -> do
         let Machine{rstack} = m
         case rstack of
@@ -571,7 +567,7 @@ runEff m e = loop m e k0
 
 data Machine = Machine
   { pstack :: [Value]
-  , rstack :: [Addr]
+  , rstack :: [Value]
   , dispatchTable :: Map Char Addr
   , mem :: Map Addr Slot
   , hereAddr :: Addr -- TODO: use special structured address
