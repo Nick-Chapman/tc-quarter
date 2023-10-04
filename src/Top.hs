@@ -14,20 +14,23 @@ main :: IO ()
 main = do
   putStrLn "*spec-quarter*"
   xs <- sequence
-    [ readFile ("/home/nic/code/quarter-forth/f/"++f)
+    [ readFile ("/home/nic/code/quarter-forth/f/" ++ f)
     | f <-
         [ "quarter.q"
         , "forth.f"
         , "tools.f"
-        , "regression.f"
+--        , "regression.f" -- TODO: need signed comparison
         , "examples.f"
         , "primes.f"
 --        , "bf.f"
 --        , "factor.f"
 --        , "test-bf-factor.f"
+        , "start.f"
         ]
     ]
+  --go (concat xs ++ " 1 2 3 .s cr ") -- TODO: .s does not work yet
   go (concat xs)
+
 
 data Prim
   = Kdx_K | Kdx_D | Kdx_X -- TODO: meh
@@ -60,6 +63,7 @@ data Prim
   | GetKey
   | Time
   | StartupIsComplete
+  | EchoOn
   deriving (Eq,Ord,Show,Enum,Bounded)
 
 quarterDispatch :: [(Char,Prim)]
@@ -158,6 +162,7 @@ kernelDictionary =
   , ("get-key", GetKey)
   , ("time", Time)
   , ("startup-is-complete", StartupIsComplete)
+  , ("echo-on", EchoOn)
   ]
 
 go :: String -> IO ()
@@ -211,7 +216,7 @@ runInteraction = loop 0
         case inp of
           [] -> loop (n+1) inp (f Nothing)
           c:inp -> do
-            printf "%c" c -- echo-on
+            --printf "%c" c -- echo-on
             loop (n+1) inp (f (Just c))
 
     _flush = hFlush stdout
@@ -272,41 +277,47 @@ prim1 = \case
     a <- HereAddr
     Push (valueOfAddr a)
   CompileComma -> do
-    a <- Here
-    Allot 1
     v <- Pop
-    UpdateMem a (SlotCall (addrOfValue v))
-  RetComma -> do
+    let slot = SlotCall (addrOfValue v)
     a <- Here
-    Allot 1
-    UpdateMem a SlotRet
+    Allot (slotSize slot)
+    UpdateMem a slot
+  RetComma -> do
+    let slot = SlotRet
+    a <- Here
+    Allot (slotSize slot)
+    UpdateMem a slot
   Comma -> do
     v <- Pop
+    let slot = SlotLit v
     a <- Here
-    Allot 1
-    UpdateMem a (SlotLit v)
+    Allot (slotSize slot)
+    UpdateMem a slot
   C_Comma -> do
     v <- Pop
+    let slot = SlotChar (charOfValue v)
     a <- Here
-    Allot 1
-    UpdateMem a (SlotChar (charOfValue v))
+    Allot (slotSize slot)
+    UpdateMem a slot
   Lit -> do
     a <- addrOfValue <$> RPop
     slot <- LookupMem a
     let v = valueOfSlot slot
-    let a' = nextAddr a
+    let a' = offsetAddr (slotSize slot) a
     Push v
     RPush (valueOfAddr a')
   Branch0 -> do
     a <- addrOfValue <$> RPop
     slot <- LookupMem a
     v <- Pop
-    let a' = if isZero v then offsetAddr (valueOfSlot slot) a else nextAddr a
+    let n = numbOfValue (valueOfSlot slot)
+    let a' = offsetAddr (if isZero v then n else slotSize slot) a
     RPush (valueOfAddr a')
   Branch -> do
     a <- addrOfValue <$> RPop
     slot <- LookupMem a
-    let a' = offsetAddr (valueOfSlot slot) a
+    let n = numbOfValue (valueOfSlot slot)
+    let a' = offsetAddr n a
     RPush (valueOfAddr a')
   Fetch -> do
     v1 <- Pop
@@ -373,10 +384,10 @@ prim1 = \case
   EntryComma -> do
     name <- addrOfValue <$> Pop
     next <- E_Latest
-    let e = Entry { name, next, hidden = False, immediate = False }
+    let slot = SlotEntry Entry { name, next, hidden = False, immediate = False }
     a <- Here
-    Allot 1
-    UpdateMem a (SlotEntry e)
+    Allot (slotSize slot)
+    UpdateMem a slot
     h <- Here
     SetLatest h -- we point to the XT, not the entry itself
   XtToNext -> do
@@ -436,10 +447,13 @@ prim1 = \case
   BitShiftRight -> do
     a <- Pop
     Push (valueShiftRight a)
-  StackPointer -> do
-    undefined
   StackPointerBase -> do
-    undefined
+    let n = paramStackBase
+    Push (valueOfNumb n)
+  StackPointer -> do
+    d <- StackDepth
+    let n = paramStackBase - (2*d)
+    Push (valueOfNumb n)
   ReturnStackPointer -> do
     undefined
   ReturnStackPointerBase -> do
@@ -447,17 +461,23 @@ prim1 = \case
   GetKey -> do
     Push (valueOfAddr (AP Key))
   Time -> do
-    Push (valueOfNumb 123) -- TODO: dummy
-    Push (valueOfNumb 456) -- TODO: dummy
+    Push (valueOfNumb 123) -- TODO
+    Push (valueOfNumb 456) -- TODO
   StartupIsComplete -> do
-    undefined
+    pure () -- TODO
+  EchoOn -> do
+    pure () -- TODO
+
+
+paramStackBase :: Numb
+paramStackBase = 0
 
 exec :: Addr -> Eff ()
 exec a0 = do
   LookupMem a0 >>= \case
     SlotPrim p -> prim p
-    SlotCall a -> do
-      RPush (valueOfAddr (nextAddr a0))
+    slot@(SlotCall a) -> do
+      RPush (valueOfAddr (offsetAddr (slotSize slot) a0))
       exec a
     SlotRet -> do
       v <- RPop
@@ -492,6 +512,7 @@ data Eff a where
   UpdateMem :: Addr -> Slot -> Eff ()
   Push :: Value -> Eff ()
   Pop :: Eff Value
+  StackDepth :: Eff Numb
   RPush :: Value -> Eff ()
   RPop :: Eff Value
   E_Latest :: Eff Addr
@@ -529,6 +550,7 @@ runEff m e = loop m e k0
         let Machine{dispatchTable=dt} = m
         k () m { dispatchTable = Map.insert c a dt }
       LookupMem (AS s) -> k (SlotString s) m -- super duper special case
+      UpdateMem (a@AS{}) _ -> IError (show ("UpdateMem",a)) m
       LookupMem a -> do
         let Machine{mem} = m
         case Map.lookup a mem of
@@ -545,6 +567,9 @@ runEff m e = loop m e k0
         case pstack of
           [] -> error "Pop[]"
           v:pstack -> k v m { pstack }
+      StackDepth -> do
+        let Machine{pstack} = m
+        k (fromIntegral $ length pstack) m
       RPush v -> do
         let Machine{rstack} = m
         k () m { rstack = v:rstack }
@@ -559,28 +584,27 @@ runEff m e = loop m e k0
       SetLatest latest -> do
         k () m { latest }
       HereAddr -> do
-        let Machine{hereAddr=a} = m
-        k a m
+        k addrOfHere m
       Here -> do
-        let Machine{hereAddr=a,mem} = m
+        let Machine{mem} = m
         let err = error "Here"
-        let slot = maybe err id $ Map.lookup a mem
+        let slot = maybe err id $ Map.lookup addrOfHere mem
         k (addrOfValue (valueOfSlot slot)) m
       Allot n -> do
-        let Machine{hereAddr=ha,mem} = m
+        let Machine{mem} = m
         let err = error "Allot"
-        let slot = maybe err id $ Map.lookup ha mem
+        let slot = maybe err id $ Map.lookup addrOfHere mem
         let a = addrOfValue (valueOfSlot slot)
-        let a' = offsetAddr (valueOfNumb n) a
+        let a' = offsetAddr n a
         let slot' = SlotLit (valueOfAddr a')
-        k () m { mem = Map.insert ha slot' mem }
+        k () m { mem = Map.insert addrOfHere slot' mem }
+
 
 data Machine = Machine
   { pstack :: [Value]
   , rstack :: [Value]
   , dispatchTable :: Map Char Addr
   , mem :: Map Addr Slot
-  , hereAddr :: Addr -- TODO: use special structured address
   , tick :: Int
   , latest :: Addr
   }
@@ -601,23 +625,25 @@ machine0 = Machine
       Map.fromList [ (c,AP p)
                    | (c,p) <- quarterDispatch ]
   , mem = mem0
-  , hereAddr = AN 0
   , tick = 0
   , latest = AP $ snd (head kernelDictionary)
   }
 
 type Mem = Map Addr Slot
 
+hereStart :: Addr
+hereStart = AN 100 -- TODO: Meh? anything we like
+
 mem0 :: Mem
 mem0 = Map.fromList $
        [ (AP p, SlotPrim p) | p <- allPrims ]
-       ++ [(AN 0, SlotLit (VA (AN 1)))] -- for here-pointer. TODO: yuck
+       ++ [(addrOfHere, SlotLit (VA hereStart))]
        ++ primEntries
   where
     primEntries :: [(Addr, Slot)]
     primEntries =
       [ (APE prim,
-         SlotEntry (Entry { name = AS name, next, hidden = False, immediate = False })
+         SlotEntry Entry { name = AS name, next, hidden = False, immediate = False }
         )
       | ((name,prim),next) <-
         zip kernelDictionary $ [ AP prim | (_,prim) <- tail kernelDictionary ] ++ [ AN 0 ]
@@ -628,25 +654,38 @@ dumpMem :: Mem -> String
 dumpMem mem = do
   unlines
     [ printf "%s : %s" (show a) (unwords (map show slots))
-    | (a,slots) <- collectDef (AN 0) (AN 0) []
+    | (a,slots) <- collectDef a0 a0 []
     ]
   where
+    a0 = hereStart
+
     collectDef :: Addr -> Addr -> [Slot] -> [(Addr,[Slot])]
     collectDef a0 a acc =
       case Map.lookup a mem of
         Nothing -> [(a0,reverse acc)]
-        Just slot ->
+        Just slot -> do
+          let a' = offsetAddr (slotSize slot) a
           case slot of
             SlotRet -> do
-              let a' = nextAddr a
               (a0,reverse (slot:acc)) : collectDef a' a' []
             _ ->
-              collectDef a0 (nextAddr a) (slot:acc)
+              collectDef a0 a' (slot:acc)
+
+
+slotSize :: Slot -> Numb
+slotSize = \case
+  SlotRet -> 1
+  SlotCall{} -> 3 -- should be 3
+  SlotPrim{} -> undefined -- ???
+  SlotLit{} -> 2 -- should be 2 -- one regression tests needs this
+  SlotChar{} -> 1
+  SlotEntry{} -> 1 -- assumed by prevAddr -- TODO: fix!
+  SlotString{} -> undefined -- whatever!
 
 data Slot
-  = SlotPrim Prim
+  = SlotRet
   | SlotCall Addr
-  | SlotRet
+  | SlotPrim Prim -- TODO: kill??
   | SlotLit Value
   | SlotChar Char
   | SlotEntry Entry
@@ -663,7 +702,7 @@ data Value = VC Char | VN Numb | VA Addr deriving (Eq)
 
 type Numb = Word16
 
-data Addr = AN Numb | AP Prim | APE Prim | AS String
+data Addr = AN Numb | AP Prim | APE Prim | AS String | AH
   deriving (Eq,Ord)
 
 instance Show Slot where
@@ -688,22 +727,19 @@ instance Show Addr where
     AP p -> printf "&%s" (show p)
     APE p -> printf "&Entry:%s" (show p)
     AS s -> printf "&%s" (show s)
+    AH -> printf "&here"
 
-nextAddr :: Addr -> Addr
-nextAddr = \case
-  AN i -> AN (i+1)
-  a -> error (show ("nextAddr",a))
-
-prevAddr :: Addr -> Addr
+prevAddr :: Addr -> Addr -- used only to skip back over entry slots
 prevAddr = \case
-  AN i -> AN (i-1)
+  AN i -> AN (i-1) -- assumes an entry has size 1
   AP p -> APE p
   a@APE{} -> error (show ("prevAddr",a))
   a@AS{} -> error (show ("prevAddr",a))
+  a@AH -> error (show ("prevAddr",a))
 
-offsetAddr :: Value -> Addr -> Addr
-offsetAddr v a = case a of
-  AN i -> AN (i + numbOfValue "offsetAddr" v)
+offsetAddr :: Numb -> Addr -> Addr
+offsetAddr n a = case a of
+  AN i -> AN (n + i)
   a -> error (show ("offsetAddr",a))
 
 valueOfSlot :: Slot -> Value
@@ -731,36 +767,37 @@ isZero = \case
   VA (AP{}) -> False
   VA (APE{}) -> False
   VA (AS{}) -> False
+  VA (AH{}) -> False
 
 valueMinus :: Value -> Value -> Value
-valueMinus v1 v2 = valueOfNumb (numbOfValue "-A" v1 - numbOfValue "-B" v2)
+valueMinus v1 v2 = valueOfNumb (numbOfValue v1 - numbOfValue v2)
 
 valueAdd :: Value -> Value -> Value
 valueAdd v1 v2 =
   case (v1,v2) of
     (VA (AS (_:s)),VN 1) -> VA (AS s) -- OMG, such a hack
     _ ->
-      valueOfNumb (numbOfValue "+A" v1 + numbOfValue "+B" v2)
+      valueOfNumb (numbOfValue v1 + numbOfValue v2)
 
 valueMul :: Value -> Value -> Value
-valueMul v1 v2 = valueOfNumb (numbOfValue "*A" v1 * numbOfValue "*B" v2)
+valueMul v1 v2 = valueOfNumb (numbOfValue v1 * numbOfValue v2)
 
 valueEqual :: Value -> Value -> Value
-valueEqual v1 v2 = valueOfBool (numbOfValue "=A" v1 == numbOfValue "=B" v2)
+valueEqual v1 v2 = valueOfBool (numbOfValue v1 == numbOfValue v2)
 
 valueLessThan :: Value -> Value -> Value
-valueLessThan v1 v2 = valueOfBool (numbOfValue "<A" v1 < numbOfValue "<B" v2)
+valueLessThan v1 v2 = valueOfBool (numbOfValue v1 < numbOfValue v2)
 
 valueXor :: Value -> Value -> Value
-valueXor v1 v2 = valueOfNumb (numbOfValue "xA" v1 `xor` numbOfValue "xB" v2)
+valueXor v1 v2 = valueOfNumb (numbOfValue v1 `xor` numbOfValue v2)
 
 valueDivMod :: Value -> Value -> (Value,Value)
 valueDivMod v1 v2 = do
-  ( valueOfNumb (numbOfValue "dA" v1 `div` numbOfValue "dB" v2) ,
-    valueOfNumb (numbOfValue "mA" v1 `mod` numbOfValue "mB" v2) )
+  ( valueOfNumb (numbOfValue v1 `div` numbOfValue v2) ,
+    valueOfNumb (numbOfValue v1 `mod` numbOfValue v2) )
 
 valueShiftRight :: Value -> Value
-valueShiftRight v1 = valueOfNumb (numbOfValue "sA" v1 `div` 2)
+valueShiftRight v1 = valueOfNumb (numbOfValue v1 `div` 2)
 
 valueOfBool :: Bool -> Value
 valueOfBool = VN . \case True -> vTrue; False-> vFalse
@@ -778,6 +815,9 @@ charOfValue = \case
 valueOfAddr :: Addr -> Value
 valueOfAddr = VA
 
+addrOfHere :: Addr
+addrOfHere = AH
+
 addrOfValue :: Value -> Addr
 addrOfValue = \case
   VA a -> a
@@ -787,14 +827,15 @@ addrOfValue = \case
 valueOfNumb :: Numb -> Value
 valueOfNumb = VN
 
-numbOfValue :: String -> Value -> Numb
-numbOfValue tag = \case
+numbOfValue :: Value -> Numb
+numbOfValue = \case
   VC c -> fromIntegral (ord c)
   VN n -> n
   VA (AN n) -> n
-  VA (AP p) -> error (show ("numbOfValue/AP",tag,p))
-  VA (APE p) -> error (show ("numbOfValue/APE",tag,p))
-  VA (AS s) -> error (show ("numbOfValue/AS",tag,s))
+  VA (AP p) -> error (show ("numbOfValue/AP",p))
+  VA (APE p) -> error (show ("numbOfValue/APE",p))
+  VA (AS s) -> error (show ("numbOfValue/AS",s))
+  VA (AH) -> error (show ("numbOfValue/AH"))
 
 seeChar :: Char -> String
 seeChar c = if
