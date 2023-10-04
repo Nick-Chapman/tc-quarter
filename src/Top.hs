@@ -19,7 +19,7 @@ main = do
         [ "quarter.q"
         , "forth.f"
         , "tools.f"
---        , "regression.f" -- TODO: need signed comparison
+        , "regression.f" -- TODO: need signed comparison
         , "examples.f"
         , "primes.f"
 --        , "bf.f"
@@ -216,7 +216,7 @@ runInteraction = loop 0
         case inp of
           [] -> loop (n+1) inp (f Nothing)
           c:inp -> do
-            --printf "%c" c -- echo-on
+            printf "%c" c -- echo-on
             loop (n+1) inp (f (Just c))
 
     _flush = hFlush stdout
@@ -786,7 +786,14 @@ valueEqual :: Value -> Value -> Value
 valueEqual v1 v2 = valueOfBool (numbOfValue v1 == numbOfValue v2)
 
 valueLessThan :: Value -> Value -> Value
-valueLessThan v1 v2 = valueOfBool (numbOfValue v1 < numbOfValue v2)
+valueLessThan v1 v2 = valueOfBool (numbOfValue v1 `lessThen` numbOfValue v2)
+  where
+    lessThen :: Numb -> Numb -> Bool
+    lessThen a b = mkSigned a < mkSigned b
+      where
+        mkSigned :: Numb -> Int
+        mkSigned n = if n >= 0x8000 then fromIntegral n - 0x10000 else fromIntegral n
+
 
 valueXor :: Value -> Value -> Value
 valueXor v1 v2 = valueOfNumb (numbOfValue v1 `xor` numbOfValue v2)
