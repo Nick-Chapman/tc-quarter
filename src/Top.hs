@@ -218,43 +218,43 @@ prim p = do
   _i <- Tick
   --Message (printf " {%d} %s" _i (show p))
   prim1 p
-  v <- RsPop
+  v <- RPop
   exec (addrOfValue v)
 
 prim1 :: Prim -> Eff ()
 prim1 = \case
   Kdx_K -> do
-    RsPush (valueOfAddr (AP Kdx_D))
+    RPush (valueOfAddr (AP Kdx_D))
     prim Key
   Kdx_D -> do
-    RsPush (valueOfAddr (AP Kdx_X))
+    RPush (valueOfAddr (AP Kdx_X))
     prim Dispatch
   Kdx_X -> do
-    RsPush (valueOfAddr (AP Kdx_K))
+    RPush (valueOfAddr (AP Kdx_K))
     prim Execute
   Key -> do
     c <- Get
-    PsPush (valueOfChar c)
+    Push (valueOfChar c)
   Dispatch -> do
-    v <- PsPop
+    v <- Pop
     a <- LookupDT (charOfValue v)
-    PsPush (valueOfAddr a)
+    Push (valueOfAddr a)
   SetTabEntry -> do
     c <- Get
     a <- E_Here
     UpdateDT c a
   Execute -> do
-    v <- PsPop
+    v <- Pop
     exec (addrOfValue v)
   Exit -> do
-    _ <- RsPop
+    _ <- RPop
     pure ()
   Jump -> do
-    _ <- RsPop
-    v <- PsPop
-    RsPush v
+    _ <- RPop
+    v <- Pop
+    RPush v
   Emit -> do
-    v <- PsPop
+    v <- Pop
     Put (charOfValue v)
   CR -> do
     E_CR
@@ -262,100 +262,100 @@ prim1 = \case
     pure ()
   HerePointer -> do
     a <- E_HereAddr
-    PsPush (valueOfAddr a)
+    Push (valueOfAddr a)
   CompileComma -> do
     a <- bump
-    v <- PsPop
+    v <- Pop
     UpdateMem a (SlotCall (addrOfValue v))
   RetComma -> do
     a <- bump
     UpdateMem a SlotRet
   Comma -> do
-    v <- PsPop
+    v <- Pop
     a <- bump
     UpdateMem a (SlotLit v)
   C_Comma -> do
-    v <- PsPop
+    v <- Pop
     a <- bump
     UpdateMem a (SlotChar (charOfValue v))
   Lit -> do
-    a <- addrOfValue <$> RsPop
+    a <- addrOfValue <$> RPop
     slot <- LookupMem a
     let v = valueOfSlot slot
     let a' = nextAddr a
-    PsPush v
-    RsPush (valueOfAddr a')
+    Push v
+    RPush (valueOfAddr a')
   Branch0 -> do
-    a <- addrOfValue <$> RsPop
+    a <- addrOfValue <$> RPop
     slot <- LookupMem a
-    v <- PsPop
+    v <- Pop
     let a' = if isZero v then offsetAddr a (valueOfSlot slot) else nextAddr a
-    RsPush (valueOfAddr a')
+    RPush (valueOfAddr a')
   Branch -> do
-    a <- addrOfValue <$> RsPop
+    a <- addrOfValue <$> RPop
     slot <- LookupMem a
     let a' = offsetAddr a (valueOfSlot slot)
-    RsPush (valueOfAddr a')
+    RPush (valueOfAddr a')
   Fetch -> do
-    v1 <- PsPop
+    v1 <- Pop
     slot <- LookupMem (addrOfValue v1)
-    PsPush (valueOfSlot slot)
+    Push (valueOfSlot slot)
   C_Fetch -> do
-    v1 <- PsPop
+    v1 <- Pop
     slot <- LookupMem (addrOfValue v1)
-    PsPush (valueOfChar (charOfSlot slot))
+    Push (valueOfChar (charOfSlot slot))
   Store -> do
-    vLoc <- PsPop
-    v <- PsPop
+    vLoc <- Pop
+    v <- Pop
     UpdateMem (addrOfValue vLoc) (SlotLit v)
   Dup -> do
-    v <- PsPop
-    PsPush v
-    PsPush v
+    v <- Pop
+    Push v
+    Push v
   Swap -> do
-    v1 <- PsPop
-    v2 <- PsPop
-    PsPush v1
-    PsPush v2
+    v1 <- Pop
+    v2 <- Pop
+    Push v1
+    Push v2
   Over -> do
-    v1 <- PsPop
-    v2 <- PsPop
-    PsPush v2
-    PsPush v1
-    PsPush v2
+    v1 <- Pop
+    v2 <- Pop
+    Push v2
+    Push v1
+    Push v2
   Drop -> do
-    _ <- PsPop
+    _ <- Pop
     pure ()
   Zero -> do
-    PsPush (valueOfNumb 0)
+    Push (valueOfNumb 0)
   One -> do
-    PsPush (valueOfNumb 1)
+    Push (valueOfNumb 1)
   Minus -> do
-    v2 <- PsPop
-    v1 <- PsPop
-    PsPush (valueMinus v1 v2)
+    v2 <- Pop
+    v1 <- Pop
+    Push (valueMinus v1 v2)
   Add -> do
-    v2 <- PsPop
-    v1 <- PsPop
-    PsPush (valueAdd v1 v2)
+    v2 <- Pop
+    v1 <- Pop
+    Push (valueAdd v1 v2)
   Mul -> do
-    v2 <- PsPop
-    v1 <- PsPop
-    PsPush (valueMul v1 v2)
+    v2 <- Pop
+    v1 <- Pop
+    Push (valueMul v1 v2)
   Equal -> do
-    v2 <- PsPop
-    v1 <- PsPop
-    PsPush (valueEqual v1 v2)
+    v2 <- Pop
+    v1 <- Pop
+    Push (valueEqual v1 v2)
   LessThan -> do
-    v2 <- PsPop
-    v1 <- PsPop
-    PsPush (valueLessThan v1 v2)
+    v2 <- Pop
+    v1 <- Pop
+    Push (valueLessThan v1 v2)
   Xor -> do
-    v2 <- PsPop
-    v1 <- PsPop
-    PsPush (valueXor v1 v2)
+    v2 <- Pop
+    v1 <- Pop
+    Push (valueXor v1 v2)
   EntryComma -> do
-    name <- addrOfValue <$> PsPop
+    name <- addrOfValue <$> Pop
     next <- E_Latest
     let e = Entry { name, next, hidden = False, immediate = False }
     a <- bump
@@ -363,64 +363,64 @@ prim1 = \case
     h <- E_Here
     SetLatest h -- we point to the XT, not the entry itself
   XtToNext -> do
-    v1 <- PsPop
+    v1 <- Pop
     slot <- LookupMem (prevAddr (addrOfValue v1))
     let Entry{next} = entryOfSlot slot
-    PsPush (valueOfAddr next)
+    Push (valueOfAddr next)
   XtToName -> do
-    v1 <- PsPop
+    v1 <- Pop
     slot <- LookupMem (prevAddr (addrOfValue v1))
     let Entry{name} = entryOfSlot slot
-    PsPush (valueOfAddr name)
+    Push (valueOfAddr name)
   Latest -> do
     a <- E_Latest
-    PsPush (valueOfAddr a)
+    Push (valueOfAddr a)
   IsHidden -> do
-    v1 <- PsPop
+    v1 <- Pop
     slot <- LookupMem (prevAddr (addrOfValue v1))
     let Entry{hidden} = entryOfSlot slot
-    PsPush (valueOfBool hidden)
+    Push (valueOfBool hidden)
   IsImmediate -> do
-    v1 <- PsPop
+    v1 <- Pop
     slot <- LookupMem (prevAddr (addrOfValue v1))
     let Entry{immediate} = entryOfSlot slot
-    PsPush (valueOfBool immediate)
+    Push (valueOfBool immediate)
   CrashOnlyDuringStartup -> do
     Abort "CrashOnlyDuringStartup"
   Crash -> do
     Abort "Crash"
   FlipImmediate -> do
-    a <- (prevAddr . addrOfValue) <$> PsPop
+    a <- (prevAddr . addrOfValue) <$> Pop
     entry@Entry{immediate} <- entryOfSlot <$> LookupMem a
     UpdateMem a (SlotEntry entry { immediate = not immediate })
   FlipHidden -> do
-    a <- (prevAddr . addrOfValue) <$> PsPop
+    a <- (prevAddr . addrOfValue) <$> Pop
     entry@Entry{hidden} <- entryOfSlot <$> LookupMem a
     UpdateMem a (SlotEntry entry { hidden = not hidden })
   FromReturnStack -> do
-    b <- RsPop
-    a <- RsPop
-    PsPush a
-    RsPush b
+    b <- RPop
+    a <- RPop
+    Push a
+    RPush b
     pure ()
   ToReturnStack -> do
-    b <- RsPop
-    a <- PsPop
-    RsPush a
-    RsPush b
+    b <- RPop
+    a <- Pop
+    RPush a
+    RPush b
   DivMod -> do
-    b <- PsPop
-    a <- PsPop
+    b <- Pop
+    a <- Pop
     let (d,m) = valueDivMod a b
-    PsPush m
-    PsPush d
+    Push m
+    Push d
   KeyNonBlocking -> do
     undefined
   C_Store -> do
     undefined
   BitShiftRight -> do
-    a <- PsPop
-    PsPush (valueShiftRight a)
+    a <- Pop
+    Push (valueShiftRight a)
   StackPointer -> do
     undefined
   StackPointerBase -> do
@@ -430,7 +430,7 @@ prim1 = \case
   ReturnStackPointerBase -> do
     undefined
   GetKey -> do
-    PsPush (valueOfAddr (AP Key))
+    Push (valueOfAddr (AP Key))
 
 
 bump :: Eff Addr -- TODO: prim effect?
@@ -444,10 +444,10 @@ exec a0 = do
   LookupMem a0 >>= \case
     SlotPrim p -> prim p
     SlotCall a -> do
-      RsPush (valueOfAddr (nextAddr a0))
+      RPush (valueOfAddr (nextAddr a0))
       exec a
     SlotRet -> do
-      v <- RsPop
+      v <- RPop
       exec (addrOfValue v)
     SlotLit{} ->
       Abort "exec: SLotLit"
@@ -477,13 +477,10 @@ data Eff a where
   UpdateDT :: Char -> Addr -> Eff ()
   LookupMem :: Addr -> Eff Slot
   UpdateMem :: Addr -> Slot -> Eff ()
-  -- TODO: improve clarity of Ps/Rs
-  -- rename -> Param/Return
-  -- or maybe have no prefix for param-stack
-  PsPush :: Value -> Eff ()
-  PsPop :: Eff Value
-  RsPush :: Value -> Eff ()
-  RsPop :: Eff Value
+  Push :: Value -> Eff ()
+  Pop :: Eff Value
+  RPush :: Value -> Eff ()
+  RPop :: Eff Value
   E_Latest :: Eff Addr
   SetLatest :: Addr -> Eff ()
   E_HereAddr :: Eff Addr
@@ -529,21 +526,21 @@ runEff m e = loop m e k0
       UpdateMem a x -> do
         let Machine{mem} = m
         k () m { mem = Map.insert a x mem }
-      PsPush v -> do
+      Push v -> do
         let Machine{pstack} = m
         k () m { pstack = v:pstack }
-      PsPop -> do
+      Pop -> do
         let Machine{pstack} = m
         case pstack of
-          [] -> error "PsPop[]"
+          [] -> error "Pop[]"
           v:pstack -> k v m { pstack }
-      RsPush v -> do
+      RPush v -> do
         let Machine{rstack} = m
         k () m { rstack = v:rstack }
-      RsPop -> do
+      RPop -> do
         let Machine{rstack} = m
         case rstack of
-          [] -> error "RsPop[]"
+          [] -> error "RPop[]"
           v:rstack -> k v m { rstack }
       E_Latest -> do
         let Machine{latest} = m
