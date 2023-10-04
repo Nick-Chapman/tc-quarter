@@ -19,13 +19,12 @@ main = do
         [ "quarter.q"
         , "forth.f"
         , "tools.f"
+        , "regression.f"
         , "examples.f"
         , "primes.f"
-
-        , "bf.f"
-        , "factor.f"
-        , "test-bf-factor.f"
-
+--        , "bf.f"
+--        , "factor.f"
+--        , "test-bf-factor.f"
         ]
     ]
   go (concat xs)
@@ -212,7 +211,7 @@ runInteraction = loop 0
         case inp of
           [] -> loop (n+1) inp (f Nothing)
           c:inp -> do
-            --printf "%c" c -- echo-on
+            printf "%c" c -- echo-on
             loop (n+1) inp (f (Just c))
 
     _flush = hFlush stdout
@@ -250,7 +249,7 @@ prim1 = \case
     Push (valueOfAddr a)
   SetTabEntry -> do
     c <- Get
-    a <- E_Here
+    a <- Here
     UpdateDT c a
   Execute -> do
     v <- Pop
@@ -270,22 +269,26 @@ prim1 = \case
   Nop -> do
     pure ()
   HerePointer -> do
-    a <- E_HereAddr
+    a <- HereAddr
     Push (valueOfAddr a)
   CompileComma -> do
-    a <- bump
+    a <- Here
+    Allot 1
     v <- Pop
     UpdateMem a (SlotCall (addrOfValue v))
   RetComma -> do
-    a <- bump
+    a <- Here
+    Allot 1
     UpdateMem a SlotRet
   Comma -> do
     v <- Pop
-    a <- bump
+    a <- Here
+    Allot 1
     UpdateMem a (SlotLit v)
   C_Comma -> do
     v <- Pop
-    a <- bump
+    a <- Here
+    Allot 1
     UpdateMem a (SlotChar (charOfValue v))
   Lit -> do
     a <- addrOfValue <$> RPop
@@ -298,12 +301,12 @@ prim1 = \case
     a <- addrOfValue <$> RPop
     slot <- LookupMem a
     v <- Pop
-    let a' = if isZero v then offsetAddr a (valueOfSlot slot) else nextAddr a
+    let a' = if isZero v then offsetAddr (valueOfSlot slot) a else nextAddr a
     RPush (valueOfAddr a')
   Branch -> do
     a <- addrOfValue <$> RPop
     slot <- LookupMem a
-    let a' = offsetAddr a (valueOfSlot slot)
+    let a' = offsetAddr (valueOfSlot slot) a
     RPush (valueOfAddr a')
   Fetch -> do
     v1 <- Pop
@@ -371,9 +374,10 @@ prim1 = \case
     name <- addrOfValue <$> Pop
     next <- E_Latest
     let e = Entry { name, next, hidden = False, immediate = False }
-    a <- bump
+    a <- Here
+    Allot 1
     UpdateMem a (SlotEntry e)
-    h <- E_Here
+    h <- Here
     SetLatest h -- we point to the XT, not the entry itself
   XtToNext -> do
     v1 <- Pop
@@ -448,13 +452,6 @@ prim1 = \case
   StartupIsComplete -> do
     undefined
 
-
-bump :: Eff Addr -- TODO: prim effect?
-bump = do
-  a <- E_Here
-  BumpHere
-  pure a
-
 exec :: Addr -> Eff ()
 exec a0 = do
   LookupMem a0 >>= \case
@@ -499,9 +496,9 @@ data Eff a where
   RPop :: Eff Value
   E_Latest :: Eff Addr
   SetLatest :: Addr -> Eff ()
-  E_HereAddr :: Eff Addr
-  E_Here :: Eff Addr
-  BumpHere :: Eff ()
+  HereAddr :: Eff Addr
+  Here :: Eff Addr
+  Allot :: Numb -> Eff ()
 
 runEff :: Machine -> Eff () -> Interaction
 runEff m e = loop m e k0
@@ -561,20 +558,22 @@ runEff m e = loop m e k0
         k latest m
       SetLatest latest -> do
         k () m { latest }
-      E_HereAddr -> do
+      HereAddr -> do
         let Machine{hereAddr=a} = m
         k a m
-      E_Here -> do
+      Here -> do
         let Machine{hereAddr=a,mem} = m
-        let err = error "E_Here"
+        let err = error "Here"
         let slot = maybe err id $ Map.lookup a mem
         k (addrOfValue (valueOfSlot slot)) m
-      BumpHere -> do
-        let Machine{hereAddr=a,mem} = m
-        let err = error "BumpHere"
-        let slot = maybe err id $ Map.lookup a mem
-        let slot' = SlotLit (valueOfAddr (nextAddr (addrOfValue (valueOfSlot slot))))
-        k () m { mem = Map.insert a slot' mem }
+      Allot n -> do
+        let Machine{hereAddr=ha,mem} = m
+        let err = error "Allot"
+        let slot = maybe err id $ Map.lookup ha mem
+        let a = addrOfValue (valueOfSlot slot)
+        let a' = offsetAddr (valueOfNumb n) a
+        let slot' = SlotLit (valueOfAddr a')
+        k () m { mem = Map.insert ha slot' mem }
 
 data Machine = Machine
   { pstack :: [Value]
@@ -702,8 +701,8 @@ prevAddr = \case
   a@APE{} -> error (show ("prevAddr",a))
   a@AS{} -> error (show ("prevAddr",a))
 
-offsetAddr :: Addr -> Value -> Addr
-offsetAddr a v = case a of
+offsetAddr :: Value -> Addr -> Addr
+offsetAddr v a = case a of
   AN i -> AN (i + numbOfValue "offsetAddr" v)
   a -> error (show ("offsetAddr",a))
 
