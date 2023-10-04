@@ -25,7 +25,6 @@ main = do
         , "start.f"
         ]
     ]
-  --go (concat xs ++ " 1 2 3 .s cr ") -- TODO: .s does not work yet
   go (concat xs)
 
 
@@ -53,8 +52,8 @@ data Prim
   | KeyNonBlocking
   | C_Store
   | BitShiftRight
-  | StackPointer
-  | StackPointerBase
+  | Sp
+  | Sp0
   | ReturnStackPointer
   | ReturnStackPointerBase
   | GetKey
@@ -152,8 +151,8 @@ kernelDictionary =
   , ("crash-only-during-startup", CrashOnlyDuringStartup)
   , ("immediate?", IsImmediate)
   , ("/2", BitShiftRight)
-  , ("sp", StackPointer)
-  , ("sp0", StackPointerBase)
+  , ("sp", Sp)
+  , ("sp0", Sp0)
   , ("rsp", ReturnStackPointer)
   , ("rsp0", ReturnStackPointerBase)
   , ("get-key", GetKey)
@@ -307,13 +306,13 @@ prim1 = \case
     a <- addrOfValue <$> RPop
     slot <- LookupMem a
     v <- Pop
-    let n = numbOfValue (valueOfSlot slot)
+    let n = fromIntegral $ numbOfValue (valueOfSlot slot)
     let a' = offsetAddr (if isZero v then n else slotSize slot) a
     RPush (valueOfAddr a')
   Branch -> do
     a <- addrOfValue <$> RPop
     slot <- LookupMem a
-    let n = numbOfValue (valueOfSlot slot)
+    let n = fromIntegral $ numbOfValue (valueOfSlot slot)
     let a' = offsetAddr n a
     RPush (valueOfAddr a')
   Fetch -> do
@@ -446,13 +445,11 @@ prim1 = \case
   BitShiftRight -> do
     a <- Pop
     Push (valueShiftRight a)
-  StackPointerBase -> do
-    let n = paramStackBase
-    Push (valueOfNumb n)
-  StackPointer -> do
-    d <- StackDepth
-    let n = paramStackBase - (2*d)
-    Push (valueOfNumb n)
+  Sp0 -> do
+    Push (valueOfAddr paramStackBase)
+  Sp -> do
+    a <- StackPointer
+    Push (valueOfAddr a)
   ReturnStackPointer -> do
     undefined
   ReturnStackPointerBase -> do
@@ -468,8 +465,8 @@ prim1 = \case
     pure () -- TODO
 
 
-paramStackBase :: Numb
-paramStackBase = 0
+paramStackBase :: Addr
+paramStackBase = AN 0
 
 exec :: Addr -> Eff ()
 exec = \case
@@ -512,14 +509,14 @@ data Eff a where
   UpdateMem :: Addr -> Slot -> Eff ()
   Push :: Value -> Eff ()
   Pop :: Eff Value
-  StackDepth :: Eff Numb
+  StackPointer :: Eff Addr
   RPush :: Value -> Eff ()
   RPop :: Eff Value
   E_Latest :: Eff Addr
   SetLatest :: Addr -> Eff ()
   HereAddr :: Eff Addr
   Here :: Eff Addr
-  Allot :: Numb -> Eff ()
+  Allot :: Int -> Eff ()
 
 runEff :: Machine -> Eff () -> Interaction
 runEff m e = loop m e k0
@@ -560,16 +557,21 @@ runEff m e = loop m e k0
         let Machine{mem} = m
         k () m { mem = Map.insert a x mem }
       Push v -> do
-        let Machine{pstack} = m
-        k () m { pstack = v:pstack }
+        let Machine{pstack,sp,mem} = m
+        let sp' = offsetAddr (-2) sp
+        k () m { pstack = v:pstack
+               , sp = sp', mem = Map.insert sp' (SlotLit v) mem
+               }
       Pop -> do
-        let Machine{pstack} = m
+        let Machine{pstack,sp,mem} = m
         case pstack of
           [] -> error "Pop[]"
-          v:pstack -> k v m { pstack }
-      StackDepth -> do
-        let Machine{pstack} = m
-        k (fromIntegral $ length pstack) m
+          _:pstack -> do
+            let v = valueOfSlot (maybe undefined id $ Map.lookup sp mem)
+            k v m { pstack, sp = offsetAddr 2 sp }
+      StackPointer -> do
+        let Machine{sp} = m
+        k sp m
       RPush v -> do
         let Machine{rstack} = m
         k () m { rstack = v:rstack }
@@ -601,7 +603,8 @@ runEff m e = loop m e k0
 
 
 data Machine = Machine
-  { pstack :: [Value]
+  { pstack :: [Value] -- TODO: kill
+  , sp :: Addr
   , rstack :: [Value]
   , dispatchTable :: Map Char Addr
   , mem :: Map Addr Slot
@@ -611,6 +614,7 @@ data Machine = Machine
 
 instance Show Machine where
   show Machine{pstack=_p,rstack=_r} = do
+    -- TODO show param-stack using sp/mem
     printf "%s ; %s" (show (reverse _p)) (show _r)
 
 seeFinalMachine :: Machine -> String
@@ -620,6 +624,7 @@ seeFinalMachine m@Machine{mem} =
 machine0 :: Machine
 machine0 = Machine
   { pstack = []
+  , sp = paramStackBase
   , rstack = []
   , dispatchTable =
       Map.fromList [ (c,AP p)
@@ -670,13 +675,13 @@ dumpMem mem = do
               collectDef a0 a' (slot:acc)
 
 
-slotSize :: Slot -> Numb
+slotSize :: Slot -> Int
 slotSize = \case
   SlotRet -> 1
   SlotCall{} -> 3
   SlotLit{} -> 2
   SlotChar{} -> 1
-  SlotEntry{} -> 1 -- assumed by prevAddr -- TODO: fix!
+  SlotEntry{} -> 1
   SlotString{} -> undefined -- whatever!
 
 data Slot
@@ -731,9 +736,9 @@ prevAddr = \case
   AP p -> APE p
   a -> error (show ("prevAddr",a))
 
-offsetAddr :: Numb -> Addr -> Addr
+offsetAddr :: Int -> Addr -> Addr
 offsetAddr n a = case a of
-  AN i -> AN (n + i)
+  AN i -> AN (fromIntegral n + i)
   -- AH -> AHplus1
   a -> error (show ("offsetAddr",a))
 
