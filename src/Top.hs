@@ -19,12 +19,9 @@ main = do
         [ "quarter.q"
         , "forth.f"
         , "tools.f"
-        , "regression.f" -- TODO: need signed comparison
+        , "regression.f"
         , "examples.f"
         , "primes.f"
---        , "bf.f"
---        , "factor.f"
---        , "test-bf-factor.f"
         , "start.f"
         ]
     ]
@@ -216,7 +213,7 @@ runInteraction = loop 0
         case inp of
           [] -> loop (n+1) inp (f Nothing)
           c:inp -> do
-            printf "%c" c -- echo-on
+            --printf "%c" c -- echo-on
             loop (n+1) inp (f (Just c))
 
     _flush = hFlush stdout
@@ -328,9 +325,11 @@ prim1 = \case
     slot <- LookupMem (addrOfValue v1)
     Push (valueOfChar (charOfSlot slot))
   Store -> do
-    vLoc <- Pop
+    a <- addrOfValue <$> Pop
     v <- Pop
-    UpdateMem (addrOfValue vLoc) (SlotLit v)
+    UpdateMem a (SlotLit v)
+    -- For regression test which checks endian-ness:
+    -- UpdateMem (offsetAddr 1 a) (SlotChar (Char.chr (fromIntegral (numbOfValue v) `div` 256)))
   C_Store -> do
     vLoc <- Pop
     v <- Pop
@@ -632,7 +631,7 @@ machine0 = Machine
 type Mem = Map Addr Slot
 
 hereStart :: Addr
-hereStart = AN 100 -- TODO: Meh? anything we like
+hereStart = AN 0
 
 mem0 :: Mem
 mem0 = Map.fromList $
@@ -702,7 +701,7 @@ data Value = VC Char | VN Numb | VA Addr deriving (Eq)
 
 type Numb = Word16
 
-data Addr = AN Numb | AP Prim | APE Prim | AS String | AH
+data Addr = AN Numb | AP Prim | APE Prim | AS String | AH -- | AHplus1
   deriving (Eq,Ord)
 
 instance Show Slot where
@@ -728,18 +727,18 @@ instance Show Addr where
     APE p -> printf "&Entry:%s" (show p)
     AS s -> printf "&%s" (show s)
     AH -> printf "&here"
+    -- AHplus1 -> printf "(&here+1)"
 
 prevAddr :: Addr -> Addr -- used only to skip back over entry slots
 prevAddr = \case
   AN i -> AN (i-1) -- assumes an entry has size 1
   AP p -> APE p
-  a@APE{} -> error (show ("prevAddr",a))
-  a@AS{} -> error (show ("prevAddr",a))
-  a@AH -> error (show ("prevAddr",a))
+  a -> error (show ("prevAddr",a))
 
 offsetAddr :: Numb -> Addr -> Addr
 offsetAddr n a = case a of
   AN i -> AN (n + i)
+  -- AH -> AHplus1
   a -> error (show ("offsetAddr",a))
 
 valueOfSlot :: Slot -> Value
@@ -752,6 +751,7 @@ charOfSlot = \case
   SlotChar c -> c
   SlotString [] -> '\0'
   SlotString (c:_) -> c
+  --SlotLit v -> Char.chr (fromIntegral (numbOfValue v `mod` 256))
   slot -> error (printf "unexpected non-char slot: %s" (show slot))
 
 entryOfSlot :: Slot -> Entry
@@ -764,10 +764,7 @@ isZero = \case
   VC c ->  c == '\0'
   VN n -> n == 0
   VA (AN n) -> n == 0
-  VA (AP{}) -> False
-  VA (APE{}) -> False
-  VA (AS{}) -> False
-  VA (AH{}) -> False
+  _ -> False
 
 valueMinus :: Value -> Value -> Value
 valueMinus v1 v2 = valueOfNumb (numbOfValue v1 - numbOfValue v2)
@@ -816,7 +813,7 @@ valueOfChar = VC
 charOfValue :: Value -> Char
 charOfValue = \case
   VC c -> c
-  VN n -> Char.chr (fromIntegral (n `mod` 256)) -- TODO: dodgy?
+  VN n -> Char.chr (fromIntegral (n `mod` 256))
   v -> error (show ("charOfValue",v))
 
 valueOfAddr :: Addr -> Value
@@ -828,7 +825,7 @@ addrOfHere = AH
 addrOfValue :: Value -> Addr
 addrOfValue = \case
   VA a -> a
-  VN n -> AN n -- TODO: hmm?
+  VN n -> AN n
   v@VC{} -> error (show ("addrOfValue",v))
 
 valueOfNumb :: Numb -> Value
@@ -839,10 +836,7 @@ numbOfValue = \case
   VC c -> fromIntegral (ord c)
   VN n -> n
   VA (AN n) -> n
-  VA (AP p) -> error (show ("numbOfValue/AP",p))
-  VA (APE p) -> error (show ("numbOfValue/APE",p))
-  VA (AS s) -> error (show ("numbOfValue/AS",s))
-  VA (AH) -> error (show ("numbOfValue/AH"))
+  a -> error (show ("numbOfValue",a))
 
 seeChar :: Char -> String
 seeChar c = if
