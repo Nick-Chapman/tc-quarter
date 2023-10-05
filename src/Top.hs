@@ -17,12 +17,12 @@ main = do
     [ readFile ("../quarter-forth/f/" ++ f)
     | f <-
         [ "quarter.q"
-        , "forth.f"
+{-        , "forth.f"
         , "tools.f"
         , "regression.f"
         , "examples.f"
         , "primes.f"
-        , "start.f"
+        , "start.f" -}
         ]
     ]
   go (concat xs)
@@ -183,14 +183,13 @@ runInteraction = loop 0
   where
     loop :: Int -> String -> Interaction -> IO ()
     loop n inp = \case -- n counts the gets
-      IHalt _m -> do
+      IHalt _m@Machine{tick} -> do
         --printf "Remaining input: '%s'\n" inp
-        --printf "\n%s\n" (seeFinalMachine _m)
-        pure ()
+        printf "#machine-ticks=%d\n" tick
+        printf "\n%s\n" (seeFinalMachine _m)
       IError s _m -> do
         printf "\n**Error: %s\n" s
         --printf "\n%s\n" (seeFinalMachine _m)
-        pure ()
       IDebug m i -> do
         printf "%s\n" (show m)
         loop n inp i
@@ -212,7 +211,7 @@ runInteraction = loop 0
         case inp of
           [] -> loop (n+1) inp (f Nothing)
           c:inp -> do
-            --printf "%c" c -- echo-on
+            printf "%c" c -- echo-on
             loop (n+1) inp (f (Just c))
 
     _flush = hFlush stdout
@@ -428,7 +427,6 @@ prim1 = \case
     a <- RPop
     Push a
     RPush b
-    pure ()
   ToReturnStack -> do
     b <- RPop
     a <- Pop
@@ -618,8 +616,11 @@ instance Show Machine where
     printf "%s ; %s" (show (reverse _p)) (show _r)
 
 seeFinalMachine :: Machine -> String
-seeFinalMachine m@Machine{mem} =
-  unlines [ show m , dumpMem mem ]
+seeFinalMachine m@Machine{mem=_mem} =
+  unlines [ show m
+          -- , dumpMem _mem
+          , dumpDispatchTable m
+          ]
 
 machine0 :: Machine
 machine0 = Machine
@@ -653,27 +654,59 @@ mem0 = Map.fromList $
         zip kernelDictionary $ [ AP prim | (_,prim) <- tail kernelDictionary ] ++ [ AN 0 ]
       ]
 
+dumpDispatchTable :: Machine -> String
+dumpDispatchTable Machine{dispatchTable=dt,mem} =
+  unlines
+  [ printf "%s : %s" (seeChar c) (unwords (map seeSlot slots))
+  | (n,c) <- Map.toList userQDefs
+  , let slots = collectDef [] (AN n)
+  ]
+  where
+    collectDef :: [Slot] -> Addr -> [Slot]
+    collectDef acc a =
+      case Map.lookup a mem of
+        Nothing -> error (show ("collectDef/addr",a))
+        Just slot -> do
+          let a' = offsetAddr (slotSize slot) a
+          case slot of
+            SlotRet -> reverse (slot:acc)
+            _ -> collectDef (slot:acc) a'
+
+    -- special case for call slots to address we can see in the dispatchTable
+    seeSlot :: Slot -> String
+    seeSlot = \case
+      SlotCall (AN n) -> printf "*%s" (seeChar (lookUserQ n))
+      slot -> show slot
+
+    lookUserQ :: Numb -> Char
+    lookUserQ n = maybe undefined id $ Map.lookup n userQDefs
+
+    userQDefs :: Map Numb Char -- reverse apping of user-generated defs
+    userQDefs = Map.fromList [ (n,c) | (c,AN n) <- Map.toList dt ]
+
+
+{-
 dumpMem :: Mem -> String
 dumpMem mem = do
   unlines
     [ printf "%s : %s" (show a) (unwords (map show slots))
-    | (a,slots) <- collectDef a0 a0 []
+    | (a,slots) <- collectDefs a0 a0 []
     ]
   where
     a0 = hereStart
 
-    collectDef :: Addr -> Addr -> [Slot] -> [(Addr,[Slot])]
-    collectDef a0 a acc =
+    collectDefs :: Addr -> Addr -> [Slot] -> [(Addr,[Slot])]
+    collectDefs a0 a acc =
       case Map.lookup a mem of
         Nothing -> [(a0,reverse acc)]
         Just slot -> do
           let a' = offsetAddr (slotSize slot) a
           case slot of
             SlotRet -> do
-              (a0,reverse (slot:acc)) : collectDef a' a' []
+              (a0,reverse (slot:acc)) : collectDefs a' a' []
             _ ->
-              collectDef a0 a' (slot:acc)
-
+              collectDefs a0 a' (slot:acc)
+-}
 
 slotSize :: Slot -> Int
 slotSize = \case
@@ -697,7 +730,7 @@ data Entry = Entry
   , next :: Addr
   , hidden :: Bool
   , immediate :: Bool
-  } deriving Show
+  }
 
 data Value = VC Char | VN Numb | VA Addr deriving (Eq)
 
@@ -709,11 +742,21 @@ data Addr = AN Numb | AP Prim | APE Prim | AS String | AH -- | AHplus1
 instance Show Slot where
   show = \case
     SlotCall a -> printf "*%s" (show a)
-    SlotRet -> printf "*ret"
+    SlotRet -> printf "ret"
     SlotLit v -> printf "#%s" (show v)
     SlotChar c -> printf "#%s" (seeChar c)
-    SlotEntry e -> printf "[%s]" (show e)
+    SlotEntry e -> show e
     SlotString s -> show s
+
+instance Show Entry where
+  -- dont bother to show the next-link or the hidden flag
+  show Entry{name,next=_,hidden=_,immediate} =
+    printf "[Entry:%s%s]" (stringOfAddr name) (if immediate then "(I)" else "")
+
+stringOfAddr :: Addr -> String
+stringOfAddr = \case
+  AS s -> show s
+  a -> show a
 
 instance Show Value where
   show = \case
@@ -723,11 +766,11 @@ instance Show Value where
 
 instance Show Addr where
   show = \case
-    AN n -> printf "&%d" n
-    AP p -> printf "&%s" (show p)
-    APE p -> printf "&Entry:%s" (show p)
-    AS s -> printf "&%s" (show s)
-    AH -> printf "&here"
+    AN n -> printf "%d" n
+    AP p -> printf "%s" (show p)
+    APE p -> printf "Entry:%s" (show p)
+    AS s -> printf "%s" (show s)
+    AH -> printf "here"
     -- AHplus1 -> printf "(&here+1)"
 
 prevAddr :: Addr -> Addr -- used only to skip back over entry slots
