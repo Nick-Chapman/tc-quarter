@@ -672,16 +672,26 @@ dumpDispatchTable Machine{dispatchTable=dt,mem} =
             SlotRet -> reverse (slot:acc)
             _ -> collectDef (slot:acc) a'
 
-    -- special case for call slots to address we can see in the dispatchTable
+    -- special case address which are in the dispatchTable
     seeSlot :: Slot -> String
     seeSlot = \case
-      SlotCall (AN n) -> printf "*%s" (seeChar (lookUserQ n))
+      SlotCall (AN n) -> seeUserQ n
+      SlotLit v -> printf "#%s" (seeValue v)
       slot -> show slot
 
-    lookUserQ :: Numb -> Char
-    lookUserQ n = maybe undefined id $ Map.lookup n userQDefs
+    seeValue :: Value -> String
+    seeValue = \case
+      VA (AN n) -> seeUserQ n
+      v -> show v
 
-    userQDefs :: Map Numb Char -- reverse apping of user-generated defs
+    seeUserQ :: Numb -> String
+    seeUserQ n =
+      case Map.lookup n userQDefs of
+        Just c -> seeChar c
+        Nothing -> show n
+
+    -- Reverse mapping of user-generated defs
+    userQDefs :: Map Numb Char
     userQDefs = Map.fromList [ (n,c) | (c,AN n) <- Map.toList dt ]
 
 
@@ -761,7 +771,7 @@ stringOfAddr = \case
 instance Show Value where
   show = \case
     VC c -> seeChar c
-    VN n -> printf "%d" n
+    VN n -> show n
     VA a -> show a
 
 instance Show Addr where
