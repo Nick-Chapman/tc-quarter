@@ -211,7 +211,7 @@ runInteraction = loop 0
         case inp of
           [] -> loop (n+1) inp (f Nothing)
           c:inp -> do
-            printf "%c" c -- echo-on
+            --printf "%c" c -- echo-on
             loop (n+1) inp (f (Just c))
 
     _flush = hFlush stdout
@@ -617,9 +617,11 @@ instance Show Machine where
 
 seeFinalMachine :: Machine -> String
 seeFinalMachine m@Machine{mem=_mem} =
-  unlines [ show m
+  unlines [ ""
+          --, show m
           -- , dumpMem _mem
           , dumpDispatchTable m
+          , tcSomething m
           ]
 
 machine0 :: Machine
@@ -659,6 +661,7 @@ dumpDispatchTable Machine{dispatchTable=dt,mem} =
   unlines
   [ printf "%s : %s" (seeChar c) (unwords (map seeSlot slots))
   | (n,c) <- Map.toList userQDefs
+  , c == '~' -- TODO: temp. just see the def of ~
   , let slots = collectDef [] (AN n)
   ]
   where
@@ -897,3 +900,161 @@ seeChar c = if
   | n>=32 && n<=126 -> printf "'%c'" c
   | otherwise -> printf "'\\%02x'" n
   where n = Char.ord c
+
+----------------------------------------------------------------------
+-- Type Checking...
+
+tcSomething :: Machine -> String
+tcSomething Machine{dispatchTable=dt,mem} = do
+  let _ = undefined runInfer
+  let aTilda = maybe undefined id (Map.lookup '~' dt) -- that something is the ~ definition
+  let slots = collectSlots [] aTilda
+  let res :: TyEffect = runInfer (tcSlotsExec slots)
+  printf "~ :: %s" (show res)
+  where
+    look :: Addr -> Slot
+    look a = maybe undefined id (Map.lookup a mem)
+
+    collectSlots :: [Slot] -> Addr -> [Slot]
+    collectSlots acc a = do
+      let slot = look a
+      let a' = offsetAddr (slotSize slot) a
+      case slot of
+        SlotRet -> reverse (slot:acc)
+        _ -> collectSlots (slot:acc) a'
+
+tcSlotsExec :: [Slot] -> Infer TyEffect
+tcSlotsExec = \case
+  [] -> pure effect0
+  slot1:slots -> do
+    e1 <- tcSlotExec slot1
+    e2 <- tcSlotsExec slots
+    InfCompose e1 e2
+
+tcSlotExec :: Slot -> Infer TyEffect
+tcSlotExec = \case
+  SlotCall a -> tcAddrExec a
+  SlotRet -> pure effect0
+  -- Below here are all type errors
+  SlotLit v -> undefined v
+  SlotChar c -> undefined c
+  SlotEntry e -> undefined e
+  SlotString s -> undefined s
+
+effect0 :: TyEffect
+effect0 = TE_effect m m where m = TM_var 99
+
+tcAddrExec :: Addr -> Infer TyEffect
+tcAddrExec = \case
+  AN n -> undefined n
+  AP p -> tcPrimExec p
+  APE p -> undefined p
+  AS s -> undefined s
+  AH -> undefined
+
+-- TODO: primitives should be bound to type schemes!
+-- which we instantiate with fresh vars at each use occurancex
+tcPrimExec :: Prim -> Infer TyEffect
+tcPrimExec = \case
+
+  Key -> pure (TE_effect m1 m2)
+    where
+      m1 = TM { stack = s1 }
+      m2 = TM { stack = TS_cons s1 T_num }
+      s1 = TS_var 11
+
+  Dispatch -> pure (TE_effect m1 m2)
+    where
+      m1 = TM { stack = TS_cons s1 T_num }
+      m2 = TM { stack = TS_cons s1 (T_addr (TA_xt e1)) }
+      s1 = TS_var 22
+      e1 = TE_effect (TM_exists "M1") (TM_exists "M2")
+
+  CompileComma -> pure (TE_effect m1 m2)
+    where
+      m1 = TM { stack = TS_cons s1 (T_addr (TA_xt e1)) }
+      m2 = TM { stack = s1 }
+      s1 = TS_var 33
+      e1 = TE_effect (TM_var 33) (TM_var 34)
+
+  p ->
+    error (show ("tcPrimExec",p))
+
+
+data TyValue -- the type of a 16-bit value, or cell. things which can be stack items
+  = T_num -- 16 bit numeric value; may be a char/bool
+  | T_addr TyAddr -- 16 bit address of something
+--  | T_var Int -- TODO: dig into details of tvar rep later
+
+data TyAddr -- the type of the slot at an address
+  = TA_xt TyEffect -- slot containg XT with an effect
+--  | TA_call TyEffect -- ( s -- s' ) slot containing call with effect
+--  | TA_char -- char* -- slot containing a char
+--  | TA_lit TyValue -- T* -- slot containing a 16-bit value
+  -- No variable here!
+
+data TyEffect -- type of a machine effect (currently just stack effect)
+  = TE_effect TyMachine TyMachine
+  | TE_compose TyEffect TyEffect -- TEMP
+
+data TyMachine = TM -- Type of the machine
+  { stack :: TyStack -- currently just the type of the stack
+  -- TODO: we also need the return statck
+  -- TODO: and we need info relating to here/compiling
+  }
+  | TM_exists String -- existential machine state. you dont get to pick! skolem?
+  | TM_var Int
+
+data TyStack -- type of the stack
+  = TS_cons TyStack TyValue
+--  | TS_empty
+  | TS_var Int
+
+
+instance Show TyEffect where
+  show = \case
+    TE_effect m1 m2 ->
+      printf "(%s -- %s)" (show m1) (show m2)
+    TE_compose e1 e2 ->
+      printf "%s . %s" (show e1) (show e2)
+
+instance Show TyMachine where
+  show = \case
+    TM{stack} -> show stack
+    TM_exists s -> s
+    TM_var n -> show n
+
+instance Show TyStack where
+  show = \case
+    TS_cons s v -> printf "%s %s" (show s) (show v)
+    TS_var n -> show n
+
+instance Show TyValue where
+  show = \case
+    T_num{} -> "N"
+    T_addr a -> show a
+
+instance Show TyAddr where
+  show = \case
+    TA_xt e -> printf "XT%s" (show e)
+
+
+instance Functor Infer where fmap = liftM
+instance Applicative Infer where pure = InfReturn; (<*>) = ap
+instance Monad Infer where (>>=) = InfBind
+
+data Infer a where
+  InfReturn :: a -> Infer a
+  InfBind :: Infer a -> (a -> Infer b) -> Infer b
+  InfCompose :: TyEffect -> TyEffect -> Infer TyEffect
+
+runInfer :: Infer a ->  a
+runInfer = loop
+  where
+    loop :: Infer a -> a
+    loop = \case
+      InfReturn x -> x
+      InfBind m f -> loop (f (loop m))
+      InfCompose e1 e2 ->
+        -- TODO: Here we need to instigate unification!
+        TE_compose e1 e2
