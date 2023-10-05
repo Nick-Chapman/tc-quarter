@@ -1,5 +1,5 @@
 
-module Top (main) where
+module Top (main) where -- TODO: split the one file implementation
 
 import qualified Data.Map as Map
 import Data.Map (Map)
@@ -12,9 +12,9 @@ import System.IO (hFlush,stdout)
 
 main :: IO ()
 main = do
-  putStrLn "*spec-quarter*"
+  putStrLn "*tc-quarter*"
   xs <- sequence
-    [ readFile ("/home/nic/code/quarter-forth/f/" ++ f)
+    [ readFile ("../quarter-forth/f/" ++ f)
     | f <-
         [ "quarter.q"
         , "forth.f"

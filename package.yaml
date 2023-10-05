@@ -1,10 +1,10 @@
-name:                spec-quarter
+name:                tc-quarter
 version:             0.1.0.0
-description:         Spec for Quarter Forth.
+description:         Type Checking for Quarter Forth.
 license:             BSD3
 author:              Nick Chapman
 maintainer:          nic@amadido.co.uk
-github:              Nick-Chapman/spec-quarter.git
+github:              Nick-Chapman/tc-quarter.git
 
 extra-source-files:
 - README.md
@@ -63,4 +63,4 @@ library:
 executables:
   main.exe:
     main:                app/main.hs
-    dependencies:        spec-quarter
+    dependencies:        tc-quarter
