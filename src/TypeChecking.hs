@@ -28,8 +28,8 @@ extra = unlines
 
 tcMachine :: X.Machine -> IO ()
 tcMachine X.Machine{dispatchTable=dt,mem} = do
-  let _all = [ tcDef x | (_,x) <- Map.toList userQDefs ]
-  mapM_ tcDef "'~23" -- _all
+  let _all = [ x | (_,x) <- Map.toList userQDefs ]
+  mapM_ tcDef _all -- "'~23"
   where
     tcDef :: Char -> IO ()
     tcDef c = do
@@ -132,37 +132,32 @@ tcAddrExec a = case a of
     nope = Nope (printf "tcAddrExec: %s" (show a))
 
 
-schemeOfPrim :: Prim -> Maybe Scheme -- TODO: Make a static table of schemes
+schemeOfPrim :: Prim -> Maybe Scheme
 schemeOfPrim = \case
 
-  Key -> scheme (TE_effect m1 m2)
-    where
-      m1 = TM { stack = s1 }
-      m2 = TM { stack = TS_cons s1 T_num }
+  Key -> scheme $ s1 ~~> (s1 ~ num)
 
-  Dispatch -> scheme (TE_effect m1 m2)
-    where
-      m1 = TM { stack = TS_cons s1 T_num }
-      m2 = TM { stack = TS_cons s1 (T_addr (TA_xt e1)) }
-      e1 = TE_effect TM { stack = TS_exists "S1" } TM { stack = TS_exists "S2" }
+  Dispatch -> scheme $ (s1 ~ num) ~~> (s1 ~ xt (TS_exists "S1" ~~> TS_exists "S2"))
 
-  CompileComma -> scheme (TE_effect m1 m2)
-    where
-      m1 = TM { stack = TS_cons s1 (T_addr (TA_xt e1)) }
-      m2 = TM { stack = s1 }
-      e1 = TE_effect TM { stack = s2 } TM { stack = s3 }
+  CompileComma -> scheme $ (s1 ~ xt (s2 ~~> s3)) ~~> s1
 
-  Over -> scheme (TE_effect m1 m2)
+  Over -> scheme $ (s1 ~ x1 ~ x2) ~~> (s1 ~ x1 ~ x2 ~ x1)
     where
-      m1 = TM { stack = TS_cons (TS_cons s1 x1) x2 }
-      m2 = TM { stack = TS_cons (TS_cons (TS_cons s1 x1) x2) x1 }
-      x1 = T_num -- Should be polymorphic. -- need polymorphic elem types
-      x2 = T_num -- Should be polymorphic
+      x1 = num -- Should be polymorphic. -- need polymorphic elem types
+      x2 = num
 
   _ -> Nothing
 
   where
     scheme = Just . makeScheme
+
+    (~~>) stack1 stack2 =
+      TE_effect (TM stack1) (TM stack2)
+
+    (~) stack elem = TS_cons stack elem
+
+    xt = T_addr . TA_xt
+    num = T_num
 
     s1 = mkVar 1
     s2 = mkVar 2
