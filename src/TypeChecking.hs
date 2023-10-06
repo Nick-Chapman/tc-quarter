@@ -12,9 +12,12 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 
 import Execution
-  ( Machine(..)
-  , Slot(..), Addr(..), Value(..), Numb, seeChar, offsetAddr, slotSize
+  ( Slot(..), Addr(..), Value(..), Numb, seeChar, offsetAddr, slotSize
   , Prim(..)
+  )
+
+import qualified Execution as X
+  ( Machine(..)
   )
 
 extra :: String
@@ -23,8 +26,8 @@ extra = unlines
   , ":3 ^O?> ^O?> ;"
   ]
 
-tcMachine :: Machine -> IO ()
-tcMachine Machine{dispatchTable=dt,mem} = do
+tcMachine :: X.Machine -> IO ()
+tcMachine X.Machine{dispatchTable=dt,mem} = do
   let _all = [ tcDef x | (_,x) <- Map.toList userQDefs ]
   mapM_ tcDef "'~23" -- _all
   where
@@ -80,7 +83,8 @@ tcMachine Machine{dispatchTable=dt,mem} = do
     userQDefs = Map.fromList [ (n,c) | (c,AN n) <- Map.toList dt ]
 
 
-tcSlotsExec :: [Slot] -> Infer TyEffect
+
+tcSlotsExec :: [Slot] -> Infer Effect
 tcSlotsExec = \case
   [] -> noEffect
   slot1:slots -> do
@@ -91,21 +95,21 @@ tcSlotsExec = \case
     let e2' = subEffect sub e2
     composeEffect e1' e2'
 
-noEffect :: Infer TyEffect
+noEffect :: Infer Effect
 noEffect = do
   x <- Fresh
   let s = TS_var x
   let m = TM { stack = s }
   pure (TE_effect m m)
 
-composeEffect :: TyEffect -> TyEffect -> Infer TyEffect
+composeEffect :: Effect -> Effect -> Infer Effect
 composeEffect e1 e2 = do
   case (e1,e2) of
     (TE_effect m1 m2, TE_effect m3 m4) -> do
       unifyMachine m2 m3
       pure (TE_effect m1 m4)
 
-tcSlotExec :: Slot -> Infer TyEffect
+tcSlotExec :: Slot -> Infer Effect
 tcSlotExec slot = case slot of
   SlotCall a -> tcAddrExec a
   SlotRet -> noEffect
@@ -117,7 +121,7 @@ tcSlotExec slot = case slot of
     nope = Nope (printf "tcSlotExec: %s" (show slot))
 
 
-tcAddrExec :: Addr -> Infer TyEffect
+tcAddrExec :: Addr -> Infer Effect
 tcAddrExec a = case a of
   AP p -> tcPrimExec p
   AN{} -> nope
@@ -128,7 +132,7 @@ tcAddrExec a = case a of
     nope = Nope (printf "tcAddrExec: %s" (show a))
 
 
-schemeOfPrim :: Prim -> Maybe TyScheme -- TODO: Make a static table of schemes
+schemeOfPrim :: Prim -> Maybe Scheme -- TODO: Make a static table of schemes
 schemeOfPrim = \case
 
   Key -> scheme (TE_effect m1 m2)
@@ -167,17 +171,17 @@ schemeOfPrim = \case
     mkVar = TS_var . TVar
 
 
-makeScheme :: TyEffect -> TyScheme
-makeScheme e = TyScheme (varsOfEffect e) e
+makeScheme :: Effect -> Scheme
+makeScheme e = Scheme (varsOfEffect e) e
 
-tcPrimExec :: Prim -> Infer TyEffect
+tcPrimExec :: Prim -> Infer Effect
 tcPrimExec prim =
   case schemeOfPrim prim of
     Nothing -> Nope (printf "tcPrimExec: %s" (show prim))
     Just scheme -> instantiateScheme scheme
 
-instantiateScheme :: TyScheme -> Infer TyEffect
-instantiateScheme (TyScheme vars ty) = do
+instantiateScheme :: Scheme -> Infer Effect
+instantiateScheme (Scheme vars ty) = do
   bs <- sequence [ do y <- Fresh; pure (x,TS_var y) | x <- Set.toList vars]
   let sub = Subst (Map.fromList bs)
   pure (subEffect sub ty)
@@ -185,66 +189,63 @@ instantiateScheme (TyScheme vars ty) = do
 ----------------------------------------------------------------------
 -- Language of Types
 
-data TyScheme
-  = TyScheme (Set TVar) TyEffect
+data Scheme
+  = Scheme (Set TVar) Effect
 
--- TODO: rename Type - this is the main type!
-data TyEffect -- type of a machine effect (currently just stack effect)
-  = TE_effect TyMachine TyMachine
+-- Type of a machine tranformation -- what occurs during execution
+data Effect
+  = TE_effect Machine Machine
 
--- TODO: rename Machine. reference Execution Machine with X. prefix
-data TyMachine = TM
-  { stack :: TyStack -- currently just the type of the stack
+-- Type of a machine state
+data Machine = TM
+  { stack :: Stack
   -- TODO: we also need the return stack
   -- TODO: and we need info relating to here/compiling
   }
 
--- TODO: rename Stack
-data TyStack
-  = TS_cons TyStack TyValue
+-- Type of a stack of elements
+data Stack
+  = TS_cons Stack Elem
 --  | TS_empty
   | TS_var TVar
   | TS_exists String -- existential state. you dont get to pick! skolem?
 
-
--- TODO: rename Elem, as in stack elem
-data TyValue -- the type of a 16-bit value, or cell. things which can be stack items
+data Elem -- the type of a 16-bit value, or cell. things which can be stack items
   = T_num -- 16 bit numeric value; may be a char/bool
-  | T_addr TyAddr -- 16 bit address of something
+  | T_addr Pointer -- 16 bit address of something -- TODO: extra indirection buy anything?
 --  | T_var Int -- TODO, need this
 
--- TODO: rename Addr (need Execution version to be reference with X. prefix)
-data TyAddr -- the type of the slot at an address
-  = TA_xt TyEffect -- slot containg XT with an effect
---  | TA_call TyEffect -- ( s -- s' ) slot containing call with effect
+data Pointer -- the type of the slot at an address
+  = TA_xt Effect -- slot containg XT with an effect
+--  | TA_call Effect -- ( s -- s' ) slot containing call with effect
 --  | TA_char -- char* -- slot containing a char
---  | TA_lit TyValue -- T* -- slot containing a 16-bit value
+--  | TA_lit Elem -- T* -- slot containing a 16-bit value
   -- No variable here!
 
 ----------------------------------------------------------------------
 -- Show
 
-instance Show TyEffect where
+instance Show Effect where
   show = \case
     TE_effect m1 m2 ->
       printf "(%s -- %s)" (show m1) (show m2)
 
-instance Show TyMachine where
+instance Show Machine where
   show = \case
     TM{stack} -> show stack
 
-instance Show TyStack where
+instance Show Stack where
   show = \case
     TS_cons s v -> printf "%s %s" (show s) (show v)
     TS_var n -> show n
     TS_exists x -> x
 
-instance Show TyValue where
+instance Show Elem where
   show = \case
     T_num{} -> "N"
     T_addr a -> show a
 
-instance Show TyAddr where
+instance Show Pointer where
   show = \case
     TA_xt e -> printf "XT%s" (show e)
 
@@ -254,45 +255,45 @@ instance Show TVar where
 ----------------------------------------------------------------------
 -- varsOf*
 
-varsOfEffect :: TyEffect -> Set TVar
+varsOfEffect :: Effect -> Set TVar
 varsOfEffect = \case
   TE_effect m1 m2 -> varsOfMachine m1 `Set.union` varsOfMachine m2
 
-varsOfMachine :: TyMachine -> Set TVar
+varsOfMachine :: Machine -> Set TVar
 varsOfMachine = \case
   TM{stack} -> varsOfStack stack
 
-varsOfStack :: TyStack -> Set TVar
+varsOfStack :: Stack -> Set TVar
 varsOfStack = \case
   TS_cons s v -> varsOfStack s `Set.union` varsOfValue v
   TS_var x -> Set.singleton x
   TS_exists{} -> Set.empty
 
-varsOfValue :: TyValue -> Set TVar
+varsOfValue :: Elem -> Set TVar
 varsOfValue = \case
   T_num -> Set.empty
-  T_addr a -> varsOfAddr a
+  T_addr a -> varsOfPointer a
 
-varsOfAddr :: TyAddr -> Set TVar
-varsOfAddr = \case
+varsOfPointer :: Pointer -> Set TVar
+varsOfPointer = \case
   TA_xt e -> varsOfEffect e
 
 ----------------------------------------------------------------------
 -- sub*
 
-subEffect :: Subst -> TyEffect -> TyEffect
+subEffect :: Subst -> Effect -> Effect
 subEffect sub = \case
     TE_effect m1 m2 ->
       TE_effect (subMachine sub m1) (subMachine sub m2)
 
-subMachine :: Subst -> TyMachine -> TyMachine
+subMachine :: Subst -> Machine -> Machine
 subMachine sub = \case
   TM{stack} -> TM { stack = subStack sub stack }
 
-subStack :: Subst -> TyStack -> TyStack
+subStack :: Subst -> Stack -> Stack
 subStack sub = loop
   where
-    loop :: TyStack -> TyStack
+    loop :: Stack -> Stack
     loop = \case
       TS_cons s v ->
         TS_cons (loop s) (subValue sub v)
@@ -303,32 +304,32 @@ subStack sub = loop
       stack@TS_exists{} ->
         stack
 
-subValue :: Subst -> TyValue -> TyValue
+subValue :: Subst -> Elem -> Elem
 subValue sub = \case
   T_num -> T_num
-  T_addr a -> T_addr (subAddr sub a)
+  T_addr a -> T_addr (subPointer sub a)
 
-subAddr :: Subst -> TyAddr -> TyAddr
-subAddr sub = \case
+subPointer :: Subst -> Pointer -> Pointer
+subPointer sub = \case
   TA_xt e -> TA_xt (subEffect sub e)
 
 ----------------------------------------------------------------------
 -- unify*
 
-unifyEffect :: TyEffect -> TyEffect -> Infer ()
+unifyEffect :: Effect -> Effect -> Infer ()
 unifyEffect e1 e2 = do
   case (e1,e2) of
     (TE_effect m1 m2, TE_effect m3 m4) -> do
       unifyMachine m1 m3
       unifyMachine m2 m4
 
-unifyMachine :: TyMachine -> TyMachine -> Infer ()
+unifyMachine :: Machine -> Machine -> Infer ()
 unifyMachine m1 m2 = do
   case (m1,m2) of
     (TM{stack=s1},TM{stack=s2}) ->
       unifyStack s1 s2
 
-unifyStack :: TyStack -> TyStack -> Infer ()
+unifyStack :: Stack -> Stack -> Infer ()
 unifyStack s1 s2 =
   case (s1,s2) of
 
@@ -352,16 +353,16 @@ unifyStack s1 s2 =
   where
     cyclic = Nope (printf "cyclic: %s =!= %s" (show s1) (show s2))
 
-unifyValue :: TyValue -> TyValue -> Infer ()
+unifyValue :: Elem -> Elem -> Infer ()
 unifyValue v1 v2 =
   case (v1,v2) of
     (T_num,T_num) -> pure ()
     (T_num,T_addr{}) -> Nope "num/addr"
     (T_addr{},T_num) -> Nope "addr/num"
-    (T_addr a1, T_addr a2) -> unifyAddr a1 a2
+    (T_addr a1, T_addr a2) -> unifyPointer a1 a2
 
-unifyAddr :: TyAddr -> TyAddr -> Infer ()
-unifyAddr a1 a2 =
+unifyPointer :: Pointer -> Pointer -> Infer ()
+unifyPointer a1 a2 =
   case (a1,a2) of
     (TA_xt e1, TA_xt e2) -> unifyEffect e1 e2
 
@@ -375,7 +376,7 @@ instance Monad Infer where (>>=) = InfBind
 data Infer a where
   InfReturn :: a -> Infer a
   InfBind :: Infer a -> (a -> Infer b) -> Infer b
-  InfSubst :: TVar -> TyStack -> Infer ()
+  InfSubst :: TVar -> Stack -> Infer ()
   Nope :: String -> Infer a
   CurrentSub :: Infer Subst
   Fresh :: Infer TVar
@@ -383,10 +384,10 @@ data Infer a where
 
 type InfRes a = IO (Either TypeError a)
 
-runInfer :: Infer TyEffect -> InfRes TyEffect
+runInfer :: Infer Effect -> InfRes Effect
 runInfer inf0 = loop state0 inf0 k0
   where
-    k0 :: TyEffect -> State -> InfRes TyEffect
+    k0 :: Effect -> State -> InfRes Effect
     k0 ty State{subst} = do
       let ty' = subEffect subst ty
       pure (Right ty')
@@ -422,9 +423,9 @@ state0 = State { subst = subst0, u = 0 }
 ----------------------------------------------------------------------
 -- Subst
 
-data Subst = Subst (Map TVar TyStack) -- TODO: Need 2nd map for non stack vars
+data Subst = Subst (Map TVar Stack) -- TODO: Need 2nd map for non stack vars
 
-applySubst :: Subst -> TVar -> Maybe TyStack
+applySubst :: Subst -> TVar -> Maybe Stack
 applySubst (Subst m) x = Map.lookup x m
 
 domain :: Subst -> Set TVar
@@ -453,7 +454,7 @@ instance Show Subst where
 subst0 :: Subst
 subst0 = Subst Map.empty
 
-extendSubst :: Subst -> TVar -> TyStack -> Subst
+extendSubst :: Subst -> TVar -> Stack -> Subst
 extendSubst (Subst m) key replacement = do
 
   let g = Subst (Map.singleton key replacement)
