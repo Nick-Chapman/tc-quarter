@@ -764,6 +764,8 @@ numbOfValue = \case
 
 seeChar :: Char -> String
 seeChar c = if
+  | c =='\'' -> "'\\''"
+  | c =='\\' -> "'\\\\'"
   | n>=32 && n<=126 -> printf "'%c'" c
   | otherwise -> printf "'\\%02x'" n
   where n = Char.ord c

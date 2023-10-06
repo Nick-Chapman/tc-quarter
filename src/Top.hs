@@ -3,6 +3,7 @@ module Top (main) where
 
 import Text.Printf (printf)
 import System.IO (hFlush, stdout)
+import Control.Monad (when)
 
 import Execution
   ( kernelEffect
@@ -10,7 +11,7 @@ import Execution
   , Interaction(..), runEff
   )
 
-import TypeChecking (seeFinalMachine)
+import TypeChecking (extra,tcMachine)
 
 main :: IO ()
 main = do
@@ -19,15 +20,15 @@ main = do
     [ readFile ("../quarter-forth/f/" ++ f)
     | f <-
         [ "quarter.q"
-        , "forth.f"
-        , "tools.f"
-        , "regression.f"
-        , "examples.f"
-        , "primes.f"
-        , "start.f"
+        -- , "forth.f"
+        -- , "tools.f"
+        -- , "regression.f"
+        -- , "examples.f"
+        -- , "primes.f"
+        -- , "start.f"
         ]
     ]
-  go (concat xs)
+  go (concat (extra:xs))
 
 go :: String -> IO ()
 go s = do
@@ -42,17 +43,17 @@ runInteraction = loop 0
     loop :: Int -> String -> Interaction -> IO ()
     loop n inp = \case -- n counts the gets
       IHalt _m@Machine{tick} -> do
-        --printf "Remaining input: '%s'\n" inp
+        when (inp/="") $ printf "Remaining input: '%s'\n" inp
         printf "#machine-ticks=%d\n" tick
-        printf "\n%s\n" (seeFinalMachine _m)
+        tcMachine _m
       IError s _m -> do
         printf "\n**Error: %s\n" s
-        --printf "\n%s\n" (seeFinalMachine _m)
+        --tcMachine _m
       IDebug m i -> do
         printf "%s\n" (show m)
         loop n inp i
       IDebugMem m i -> do
-        printf "\n%s\n" (seeFinalMachine m)
+        tcMachine m
         loop n inp i
       IMessage mes i -> do
         printf "**%s\n" mes
@@ -60,16 +61,14 @@ runInteraction = loop 0
       ICR i -> do
         putStrLn ""
         loop n inp i
-      IPut _c i -> do
-        --printf "PUT: %c\n" _c
-        _flush
-        printf "%c" _c
+      IPut c i -> do
+        putStr [c]; flush
         loop n inp i
       IGet f -> do
         case inp of
           [] -> loop (n+1) inp (f Nothing)
           c:inp -> do
-            --printf "%c" c -- echo-on
+            --putStr [c] -- echo-on
             loop (n+1) inp (f (Just c))
 
-    _flush = hFlush stdout
+    flush = hFlush stdout
