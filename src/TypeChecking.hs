@@ -38,8 +38,7 @@ tcMachine Machine{dispatchTable=dt,mem} = do
         Left e ->
           printf "ERROR: %s\n" (show e)
 
-        Right (eff,sub) -> do
-          let ty = subEffect sub eff -- TODO:should return this
+        Right ty -> do
           printf ":: %s\n" (show ty)
 
     look :: Addr -> Slot
@@ -382,13 +381,15 @@ data Infer a where
   Fresh :: Infer TVar
 
 
-type InfRes a = IO (Either TypeError (a,Subst))
+type InfRes a = IO (Either TypeError a)
 
-runInfer :: Infer a -> InfRes a
+runInfer :: Infer TyEffect -> InfRes TyEffect
 runInfer inf0 = loop state0 inf0 k0
   where
-    k0 :: a -> State -> InfRes a
-    k0 a State{subst} = pure (Right (a,subst)) -- TODO: refine here!
+    k0 :: TyEffect -> State -> InfRes TyEffect
+    k0 ty State{subst} = do
+      let ty' = subEffect subst ty
+      pure (Right ty')
 
     loop :: State -> Infer a -> (a -> State -> InfRes b) -> InfRes b
     loop s inf k = case inf of
