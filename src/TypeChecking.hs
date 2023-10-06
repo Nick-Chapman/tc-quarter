@@ -38,8 +38,7 @@ tcMachine Machine{dispatchTable=dt,mem} = do
         Left e ->
           printf "ERROR: %s\n" (show e)
 
-        Right (eff,subst) -> do
-          let sub = useSubst subst
+        Right (eff,sub) -> do
           let ty = subEffect sub eff -- TODO:should return this
           printf ":: %s\n" (show ty)
 
@@ -181,8 +180,7 @@ tcPrimExec prim =
 instantiateScheme :: TyScheme -> Infer TyEffect
 instantiateScheme (TyScheme vars ty) = do
   bs <- sequence [ do y <- Fresh; pure (x,TS_var y) | x <- Set.toList vars]
-  let m = Map.fromList bs
-  let sub = Sub (\v -> Map.lookup v m)
+  let sub = Subst (Map.fromList bs)
   pure (subEffect sub ty)
 
 ----------------------------------------------------------------------
@@ -283,16 +281,16 @@ varsOfAddr = \case
 ----------------------------------------------------------------------
 -- sub*
 
-subEffect :: Sub -> TyEffect -> TyEffect
+subEffect :: Subst -> TyEffect -> TyEffect
 subEffect sub = \case
     TE_effect m1 m2 ->
       TE_effect (subMachine sub m1) (subMachine sub m2)
 
-subMachine :: Sub -> TyMachine -> TyMachine
+subMachine :: Subst -> TyMachine -> TyMachine
 subMachine sub = \case
   TM{stack} -> TM { stack = subStack sub stack }
 
-subStack :: Sub -> TyStack -> TyStack
+subStack :: Subst -> TyStack -> TyStack
 subStack sub = loop
   where
     loop :: TyStack -> TyStack
@@ -300,18 +298,18 @@ subStack sub = loop
       TS_cons s v ->
         TS_cons (loop s) (subValue sub v)
       stack@(TS_var var) ->
-        case applySub sub var of
+        case applySubst sub var of
           Nothing -> stack
           Just replacement -> replacement
       stack@TS_exists{} ->
         stack
 
-subValue :: Sub -> TyValue -> TyValue
+subValue :: Subst -> TyValue -> TyValue
 subValue sub = \case
   T_num -> T_num
   T_addr a -> T_addr (subAddr sub a)
 
-subAddr :: Sub -> TyAddr -> TyAddr
+subAddr :: Subst -> TyAddr -> TyAddr
 subAddr sub = \case
   TA_xt e -> TA_xt (subEffect sub e)
 
@@ -380,7 +378,7 @@ data Infer a where
   InfBind :: Infer a -> (a -> Infer b) -> Infer b
   InfSubst :: TVar -> TyStack -> Infer ()
   Nope :: String -> Infer a
-  CurrentSub :: Infer Sub
+  CurrentSub :: Infer Subst
   Fresh :: Infer TVar
 
 
@@ -409,7 +407,7 @@ runInfer inf0 = loop state0 inf0 k0
         pure (Left (TypeError (printf "Nope: %s" message)))
       CurrentSub -> do
         let State{subst} = s
-        k (useSubst subst) s
+        k subst s
       Fresh -> do
         let State{u} = s
         let x = TVar u
@@ -423,15 +421,10 @@ state0 = State { subst = subst0, u = 0 }
 ----------------------------------------------------------------------
 -- Subst
 
-data Sub = Sub (TVar -> Maybe TyStack) -- functional rep -- TODO: kill, just use subst?
-
-useSubst :: Subst -> Sub
-useSubst (Subst m) = Sub (\v -> Map.lookup v m)
-
-applySub :: Sub -> TVar -> Maybe TyStack
-applySub (Sub f) = f
-
 data Subst = Subst (Map TVar TyStack) -- TODO: Need 2nd map for non stack vars
+
+applySubst :: Subst -> TVar -> Maybe TyStack
+applySubst (Subst m) x = Map.lookup x m
 
 domain :: Subst -> Set TVar
 domain (Subst m) = Set.fromList $ Map.keys m
@@ -455,17 +448,20 @@ instance Show Subst where
   show (Subst m) =
     unwords [ printf "%s: %s," (show v) (show s)
             | (v,s) <- Map.toList m ]
+
 subst0 :: Subst
 subst0 = Subst Map.empty
 
 extendSubst :: Subst -> TVar -> TyStack -> Subst
 extendSubst (Subst m) key replacement = do
-  let g = Sub (\v -> if v==key then Just replacement else Nothing)
+
+  let g = Subst (Map.singleton key replacement)
   let mShifted = Map.map (subStack g) m
   Subst (Map.insert key replacement mShifted)
 
--- TODO: need a 2nd type for vars whicah can bind to value-types
+-- TODO: need a 2nd type for vars which can bind to value-types
 -- How name things to make it clear when have value/stack vars ?
+
 data TVar = TVar Int -- currently only stacks can be variable
   deriving (Eq,Ord)
 
