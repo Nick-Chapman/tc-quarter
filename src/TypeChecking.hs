@@ -22,14 +22,21 @@ import qualified Execution as X
 
 extra :: String
 extra = unlines
-  [ ":2 ^O?> ;"
-  , ":3 ^O?> ^O?> ;"
+  [ ":~ ^^?> ^??> ^>?> ;" -- dup quarter for convenience
+
+  , ":2 ~O ;"
+  , ":3 ~O~O ;"
+  , ":4 ~D~@~W~! ;"
+  , ":5 ~H ;"
+  , ":6 ~D~H~@~W~-~W~! ;"
+  , ":7 ~D ~! ;" -- tc error, yes!
+  , ":8 ~D~C~W~! ;" -- tc error -- Char/Num
   ]
 
 tcMachine :: X.Machine -> IO ()
 tcMachine X.Machine{dispatchTable=dt,mem} = do
   let _all = [ x | (_,x) <- Map.toList userQDefs ]
-  mapM_ tcDef "'~23"
+  mapM_ tcDef "'~t2345678"
   where
     tcDef :: Char -> IO ()
     tcDef c = do
@@ -90,22 +97,15 @@ tcStart :: [Slot] -> Infer Trans
 tcStart = tcSlotsExec
 
 tcSlotsExec :: [Slot] -> Infer Trans
-tcSlotsExec = \case
-  [] -> noTrans
-  slot1:slots -> do
-    e1 <- tcSlotExec slot1
-    e2 <- tcSlotsExec slots
-    sub <- CurrentSub
-    let e1' = subTrans sub e1
-    let e2' = subTrans sub e2
-    composeTrans e1' e2'
-
-noTrans :: Infer Trans
-noTrans = do
-  x <- FreshS
-  let s = S_Var x
-  let m = Machine { stack = s }
-  pure (T_Trans m m)
+tcSlotsExec slots = do t <- noTrans; loop t slots
+  where
+    loop :: Trans -> [Slot] -> Infer Trans
+    loop t0 = \case
+      [] -> pure t0
+      slot:slots -> do
+        t1 <- tcSlotExec slot
+        t2 <- composeTrans t0 t1
+        loop t2 slots
 
 composeTrans :: Trans -> Trans -> Infer Trans
 composeTrans e1 e2 = do
@@ -113,6 +113,13 @@ composeTrans e1 e2 = do
     (T_Trans m1 m2, T_Trans m3 m4) -> do
       unifyMachine m2 m3
       pure (T_Trans m1 m4)
+
+noTrans :: Infer Trans
+noTrans = do
+  x <- FreshS
+  let s = S_Var x
+  let m = Machine { stack = s }
+  pure (T_Trans m m)
 
 tcSlotExec :: Slot -> Infer Trans
 tcSlotExec slot = case slot of
@@ -204,7 +211,7 @@ instance Show Stack where
 instance Show Elem where
   show = \case
     E_Numeric a -> show a
-    E_XT e -> show e -- printf "XT%s" (show e)
+    E_XT t -> show t -- printf "XT%s" (show e)
     E_Var v -> show v
 
 instance Show Numeric where
@@ -215,7 +222,7 @@ instance Show Numeric where
 instance Show Contents where
   show = \case
     C_Char -> "Char"
-    C_Elem e -> printf "(%s)" (show e)
+    C_Elem e -> printf "%s" (show e)
 
 instance Show SVar where
   show (SVar n) = printf "s%s" (show n)
@@ -237,6 +244,24 @@ schemeOfPrim = \case
 
   Over -> scheme $ (s1 ~ e1 ~ e2) ~~> (s1 ~ e1 ~ e2 ~ e1)
 
+  Dup -> scheme $ (s1 ~ e1) ~~> (s1 ~ e1 ~ e1)
+
+  Swap -> scheme $ (s1 ~ e1 ~ e2) ~~> (s1 ~ e2 ~ e1)
+
+  Minus -> scheme $ (s1 ~ e1 ~ e1) ~~> (s1 ~ num) -- TODO: only allow numerics!
+  --Minus -> scheme $ (s1 ~ num ~ num) ~~> (s1 ~ num) -- TODO: more general - any numerics!
+
+  HerePointer -> scheme $ s1 ~~> (s1 ~ addr (addr e1))
+
+  Fetch -> scheme $ (s1 ~ addr e1) ~~> (s1 ~ e1)
+  C_Fetch -> scheme $ (s1 ~ addr_char) ~~> (s1 ~ num)
+
+  Store -> scheme $ (s1 ~ e1 ~ addr e1) ~~> s1
+
+  One -> scheme $ s1 ~~> (s1 ~ num)
+
+  Add -> scheme $ (s1 ~ num ~ num) ~~> (s1 ~ num) -- TODO: more general - any numerics
+
   _ -> Nothing
 
   where
@@ -246,6 +271,12 @@ schemeOfPrim = \case
       T_Trans (Machine stack1) (Machine stack2)
 
     (~) stack elem = S_Cons stack elem
+
+    addr :: Elem -> Elem
+    addr = E_Numeric . N_Address . C_Elem
+
+    addr_char :: Elem
+    addr_char = E_Numeric $ N_Address C_Char
 
     xt = E_XT
     num = E_Numeric N_Number
@@ -412,8 +443,13 @@ unifyMachine m1 m2 = do
       unifyStack s1 s2
 
 unifyStack :: Stack -> Stack -> Infer ()
-unifyStack s1 s2 =
-  case (s1,s2) of
+unifyStack s1x s2x = do
+  sub <- CurrentSub
+  let s1 = subStack sub s1x
+  let s2 = subStack sub s2x
+  let nope = Nope (printf "stack mismatch: %s ~ %s" (show s1) (show s2))
+  let cyclic = Nope (printf "stack cyclic: %s ~ %s" (show s1) (show s2))
+  case (subStack sub s1, subStack sub s2) of
 
     (S_Var x1, stack@(S_Var x2)) ->
       if x1==x2 then pure () else SubStack x1 stack
@@ -432,13 +468,15 @@ unifyStack s1 s2 =
     (_, S_Cons{}) -> nope
     (S_Skolem x1, S_Skolem x2) -> if (x1 == x2) then pure () else nope
 
-  where
-    nope = Nope (printf "unifyStack: %s ~ %s" (show s1) (show s2))
-    cyclic = Nope (printf "cyclic: %s ~ %s" (show s1) (show s2))
 
 unifyElem :: Elem -> Elem -> Infer ()
-unifyElem e1 e2 =
-  case (e1,e2) of
+unifyElem e1x e2x = do
+  sub <- CurrentSub
+  let e1 = subElem sub e1x
+  let e2 = subElem sub e2x
+  let nope = Nope (printf "elem mismatch: %s ~ %s" (show e1) (show e2))
+  let cyclic = Nope (printf "elem cyclic: %s ~ %s" (show e1) (show e2))
+  case (e1, e2) of
 
     (E_Var x1, el@(E_Var x2)) ->
       if x1==x2 then pure () else SubElem x1 el
@@ -454,9 +492,6 @@ unifyElem e1 e2 =
 
     (E_Numeric{},E_XT{}) -> nope
     (E_XT{},E_Numeric{}) -> nope
-  where
-    nope = Nope (printf "unifyElem: %s ~ %s" (show e1) (show e2))
-    cyclic = Nope (printf "cyclic: %s ~ %s" (show e1) (show e2))
 
 unifyNumeric :: Numeric -> Numeric -> Infer ()
 unifyNumeric a1 a2 =
@@ -470,8 +505,15 @@ unifyNumeric a1 a2 =
     nope = Nope (printf "unifyNumeric: %s ~ %s" (show a1) (show a2))
 
 unifyContents :: Contents -> Contents -> Infer ()
-unifyContents = undefined -- TODO!
+unifyContents c1 c2 =
+  case (c1,c2) of
+    (C_Char,C_Char) -> pure ()
+    (C_Elem e1, C_Elem e2) -> unifyElem e1 e2
 
+    (C_Char, C_Elem{}) -> nope
+    (C_Elem{}, C_Char) -> nope
+  where
+    nope = Nope (printf "unifyContents: %s ~ %s" (show c1) (show c2))
 
 ----------------------------------------------------------------------
 -- Infer
@@ -514,14 +556,14 @@ runInfer inf0 = loop state0 inf0 k0
       SubStack v stack -> do
         --printf "SubStack: %s -> %s\n" (show v) (show stack)
         let State{subst} = s
-        let subst' = extendSubstStack subst v stack
+        subst' <- extendSubstStack subst v stack
         --printf "subst: %s\n" (show subst')
         checkInvariant subst'
         k () s { subst = subst' }
       SubElem v elem -> do
         --printf "SubElem: %s -> %s\n" (show v) (show elem)
         let State{subst} = s
-        let subst' = extendSubstElem subst v elem
+        subst' <- extendSubstElem subst v elem
         --printf "subst: %s\n" (show subst')
         checkInvariant subst'
         k () s { subst = subst' }
@@ -558,23 +600,36 @@ applySubstS Subst {s} x = Map.lookup x s
 applySubstE :: Subst -> EVar -> Maybe Elem
 applySubstE Subst {e} x = Map.lookup x e
 
-domain :: Subst -> Set SVar
-domain Subst{s} = Set.fromList $ Map.keys s
+domainS :: Subst -> Set SVar
+domainS Subst{s} = Set.fromList $ Map.keys s
 
-range :: Subst -> Set SVar
-range Subst{s} = Set.unions [ svarsOfStack v | v <- Map.elems s ]
+rangeS :: Subst -> Set SVar
+rangeS Subst{s} = Set.unions [ svarsOfStack v | v <- Map.elems s ]
 
-checkInvariant :: Subst -> IO () -- TODO: invariant for all kinds of vars
+domainE :: Subst -> Set EVar
+domainE Subst{e} = Set.fromList $ Map.keys e
+
+rangeE :: Subst -> Set EVar
+rangeE Subst{e} = Set.unions [ evarsOfElem v | v <- Map.elems e ]
+
+checkInvariant :: Subst -> IO ()
 checkInvariant sub = do
-  let d = domain sub
-  let r = range sub
-  let i = d `Set.intersection` r
-  if Set.null i then pure () else do
-    printf "subst: %s\n" (show sub)
-    printf "domain: %s\n" (show d)
-    printf "range: %s\n" (show r)
-    printf "intersect: %s\n" (show i)
-    error "invariant fails"
+  let sd = domainS sub
+  let sr = rangeS sub
+  let si = sd `Set.intersection` sr
+  let ed = domainE sub
+  let er = rangeE sub
+  let ei = ed `Set.intersection` er
+  if Set.null si && Set.null ei then pure () else do
+    printf "invariant fails\n"
+    printf "- subst: %s\n" (show sub)
+    printf "- domainS: %s\n" (show sd)
+    printf "- rangeS: %s\n" (show sr)
+    printf "- intersectS: %s\n" (show si)
+    printf "- domainE: %s\n" (show ed)
+    printf "- rangeE: %s\n" (show er)
+    printf "- intersectE: %s\n" (show ei)
+    undefined
 
 instance Show Subst where
   show Subst{s,e} =
@@ -585,17 +640,50 @@ instance Show Subst where
 subst0 :: Subst
 subst0 = Subst { s = Map.empty, e = Map.empty }
 
-extendSubstStack :: Subst -> SVar -> Stack -> Subst
-extendSubstStack Subst {s, e} key replacement = do
-  let sub = Subst { s = Map.singleton key replacement, e = Map.empty }
-  Subst { s = Map.insert key replacement (Map.map (subStack sub) s)
-        , e = Map.map (subElem sub) e }
+extendSubstStack :: Subst -> SVar -> Stack -> IO Subst
+extendSubstStack sub0@Subst{s,e} key replacement = do
+  checkSubstStackOk sub0 key replacement
+  let sub1 = Subst { s = Map.singleton key replacement, e = Map.empty }
+  pure $ Subst { s = Map.insert key replacement (Map.map (subStack sub1) s)
+               , e = Map.map (subElem sub1) e }
 
-extendSubstElem :: Subst -> EVar -> Elem -> Subst
-extendSubstElem Subst {s, e} key replacement = do
-  let sub = Subst { e = Map.singleton key replacement, s = Map.empty }
-  Subst { s = Map.map (subStack sub) s
-        , e = Map.insert key replacement (Map.map (subElem sub) e) }
+extendSubstElem :: Subst -> EVar -> Elem -> IO Subst
+extendSubstElem sub0@Subst{s,e} key replacement = do
+  checkSubstElemOk sub0 key replacement
+  let sub1 = Subst { e = Map.singleton key replacement, s = Map.empty }
+  pure $ Subst { s = Map.map (subStack sub1) s
+               , e = Map.insert key replacement (Map.map (subElem sub1) e) }
+
+
+checkSubstStackOk :: Subst -> SVar -> Stack -> IO ()
+checkSubstStackOk sub key replacement = do
+  if (key `Set.member` dom) then report else do
+  if (not (Set.null (dom `Set.intersection` svarsOfStack replacement))) then report else do
+  pure ()
+    where
+      dom = domainS sub
+      report = do
+        printf "checkSubstStackOk fails\n"
+        printf "- subst: %s\n" (show sub)
+        printf "- domain: %s\n" (show dom)
+        printf "- key: %s\n" (show key)
+        printf "- replacement: %s\n" (show replacement)
+        undefined
+
+checkSubstElemOk :: Subst -> EVar -> Elem -> IO ()
+checkSubstElemOk sub key replacement = do
+  if (key `Set.member` dom) then report else do
+  if (not (Set.null (dom `Set.intersection` evarsOfElem replacement))) then report else do
+  pure ()
+    where
+      dom = domainE sub
+      report = do
+        printf "checkSubstElemOk fails\n"
+        printf "- subst: %s\n" (show sub)
+        printf "- domain: %s\n" (show dom)
+        printf "- key: %s\n" (show key)
+        printf "- replacement: %s\n" (show replacement)
+        undefined
 
 data TypeError = TypeError String
 
