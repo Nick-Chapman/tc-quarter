@@ -15,8 +15,12 @@ import Execution
 
 main :: IO ()
 main = do
-  putStrLn "*tc-quarter*"
   Tests.run
+  --_main
+
+_main :: IO ()
+_main = do
+  putStrLn "*tc-quarter*"
   xs <- sequence
     [ readFile ("../quarter-forth/f/" ++ f)
     | f <-
@@ -46,7 +50,7 @@ runInteraction = loop 0
       IHalt _m@Machine{tick} -> do
         when (inp/="") $ printf "Remaining input: '%s'\n" inp
         printf "#machine-ticks=%d\n" tick
-        tcMachine _m
+          --tcMachine _m
       IError s _m -> do
         printf "\n**Error: %s\n" s
         --tcMachine _m

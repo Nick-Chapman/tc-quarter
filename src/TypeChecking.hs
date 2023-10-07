@@ -19,7 +19,6 @@ import Data.List (nub)
 
 import Execution
   ( Slot(..), Addr(..)
-  -- , Value(..)
   , Numb
   , seeChar
   , offsetAddr, slotSize
@@ -28,8 +27,6 @@ import Execution
 
 import qualified Execution as X
   ( Machine(..)
---  , Value(..)
---  , Numb,
   , numbOfValue
   )
 
@@ -42,17 +39,6 @@ extra = unlines
   , ":t ~D~H~@~W~-~W~! ;"
 
 {-
-  , ":2 ~O ;"
-  , ":3 ~O~O ;"
-  , ":4 ~D~@~W~! ;"
-  , ":5 ~H ;"
-  , ":6 ~D~H~@~W~-~W~! ;"
-  , ":7 ~D ~! ;" -- tc error, yes!
-  , ":8 ~D~C~W~! ;" -- tc error -- Char/Num
-  , ":3 ~O~O ;" -- over-over
-  , ":7 ~D ~! ;" -- dup-fetch, TC error
-  , ":9 i ~1 t ~1 ; " -- should be TC branch mismatch - cycle actually
-  , ":9 i ~1 ~, t ~1 ; " -- with comma is good (and fallthroug ok)
   , ":9 i ~1 ~X t ~1 ; " -- exit can stop fallthrough and we are ok
   , ":9 i ~1 ~X t ~1~` ; " -- exit can stop fallthrough but branches mismatch
 -}
@@ -62,7 +48,7 @@ extra = unlines
 tcMachine :: X.Machine -> IO ()
 tcMachine m@X.Machine{dispatchTable=dt,mem} = do
   let _all = [ x | (_,x) <- Map.toList userQDefs ]
-  mapM_ tcDef _all --  "379" -- _all -- "'2345678"
+  mapM_ tcDef _all
   where
     tcDef :: Char -> IO ()
     tcDef c = do
