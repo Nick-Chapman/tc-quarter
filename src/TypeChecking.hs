@@ -1,6 +1,11 @@
 
 module TypeChecking
   ( tcMachine, extra
+  , Scheme(..), makeScheme
+  , Trans(..), Machine(..), Stack(..), Elem(..), Numeric(..), Contents(..)
+  , SVar(..), EVar(..)
+  , runInfer,tcStart, TypeError
+  , canonicalizeScheme
   ) where
 
 import qualified Data.Map as Map
@@ -10,6 +15,7 @@ import Text.Printf (printf)
 
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.List (nub)
 
 import Execution
   ( Slot(..), Addr(..)
@@ -35,7 +41,7 @@ extra = unlines
   , ":i ~L ^B?, ~>~H~@ 0# ~, ;"
   , ":t ~D~H~@~W~-~W~! ;"
 
-  {-
+{-
   , ":2 ~O ;"
   , ":3 ~O~O ;"
   , ":4 ~D~@~W~! ;"
@@ -43,16 +49,13 @@ extra = unlines
   , ":6 ~D~H~@~W~-~W~! ;"
   , ":7 ~D ~! ;" -- tc error, yes!
   , ":8 ~D~C~W~! ;" -- tc error -- Char/Num
--}
-
   , ":3 ~O~O ;" -- over-over
   , ":7 ~D ~! ;" -- dup-fetch, TC error
-
-
---  , ":9 i ~1 t ~1 ; " -- should be TC branch mismatch - cycle actually
+  , ":9 i ~1 t ~1 ; " -- should be TC branch mismatch - cycle actually
   , ":9 i ~1 ~, t ~1 ; " -- with comma is good (and fallthroug ok)
---  , ":9 i ~1 ~X t ~1 ; " -- exit can stop fallthrough and we are ok
---  , ":9 i ~1 ~X t ~1~` ; " -- exit can stop fallthrough but branches mismatch
+  , ":9 i ~1 ~X t ~1 ; " -- exit can stop fallthrough and we are ok
+  , ":9 i ~1 ~X t ~1~` ; " -- exit can stop fallthrough but branches mismatch
+-}
 
   ]
 
@@ -63,15 +66,13 @@ tcMachine m@X.Machine{dispatchTable=dt,mem} = do
   where
     tcDef :: Char -> IO ()
     tcDef c = do
-      let slots = slotsForDef c
-      printf "%s : %s\n" (seeChar c) (unwords (map seeSlot slots))
-
+      let _slots = slotsForDef c
       either <- runInfer (tcStart m c)
       case either of
-        Left e ->
-          printf "ERROR: %s\n" (show e)
-
-        Right ty -> do
+        Left e -> do
+          --printf "%s : %s\n" (seeChar c) (unwords (map _seeSlot _slots))
+          printf "%s :: ERROR: %s\n" (seeChar c) (show e)
+        Right ty ->
           printf "%s :: %s\n" (seeChar c) (show ty)
 
     look :: Addr -> Slot
@@ -91,8 +92,8 @@ tcMachine m@X.Machine{dispatchTable=dt,mem} = do
         _ -> collectSlots (slot:acc) a'
 
     -- special case address which are in the dispatchTable
-    seeSlot :: Slot -> String
-    seeSlot = \case
+    _seeSlot :: Slot -> String
+    _seeSlot = \case
       --SlotCall (AN n) -> seeUserQ n
       --SlotLit v -> printf "#%s" (seeValue v)
       slot -> show slot
@@ -127,7 +128,7 @@ tcStart X.Machine{dispatchTable=dt,mem} c = do
     loop t0 a =
       case Map.lookup a mem of
         Nothing ->
-          error (printf "loop: nothing at address %s" (show a))
+          Nope (printf "loop: nothing at address %s" (show a))
         Just slot ->
           case slot of
             SlotRet -> pure t0
@@ -226,7 +227,7 @@ tcAddrExec a = case a of
 -- Language of Types
 
 data Scheme
-  = Scheme (Set SVar) (Set EVar) Trans
+  = Scheme [SVar] [EVar] Trans
 
 -- Type of a machine tranformation -- what occurs during execution
 data Trans
@@ -270,8 +271,21 @@ data SVar = SVar Int
 data EVar = EVar Int
   deriving (Eq,Ord)
 
+deriving instance Eq Trans
+deriving instance Eq Machine
+deriving instance Eq Stack
+deriving instance Eq Elem
+deriving instance Eq Numeric
+deriving instance Eq Contents
+
 ----------------------------------------------------------------------
 -- Show
+
+instance Show Scheme where
+  show = \case
+    Scheme svars evars trans -> do
+      let xs = map show svars ++ map show evars
+      printf "forall %s. %s" (unwords xs) (show trans)
 
 instance Show Trans where
   show = \case
@@ -354,10 +368,10 @@ schemeOfPrim = \case
 
   Comma -> scheme $ s1 ~ num ~~> s1
 
-
   _ -> Nothing
 
   where
+    -- TODO: move Language of types + these convenience constructors to sep file
     scheme = Just . makeScheme
 
     (~~>) stack1 stack2 =
@@ -387,7 +401,7 @@ schemeOfPrim = \case
 
 
 makeScheme :: Trans -> Scheme
-makeScheme t = Scheme (svarsOfTrans t) (evarsOfTrans t) t
+makeScheme t = Scheme (nub (svarsOfTrans t)) (nub (evarsOfTrans t)) t
 
 tcPrimExec :: Prim -> Infer Trans
 tcPrimExec prim =
@@ -400,77 +414,83 @@ tcPrimExec prim =
 
 instantiateScheme :: Scheme -> Infer Trans
 instantiateScheme (Scheme svars evars ty) = do
-  s <- Map.fromList <$> sequence [ do y <- FreshS; pure (x,S_Var y)
-                                 | x <- Set.toList svars ]
-  e <- Map.fromList <$> sequence [ do y <- FreshE; pure (x,E_Var y)
-                                 | x <- Set.toList evars ]
+  s <- Map.fromList <$> sequence [ do y <- FreshS; pure (x,S_Var y) | x <- svars ]
+  e <- Map.fromList <$> sequence [ do y <- FreshE; pure (x,E_Var y) | x <- evars ]
   let sub = Subst { s , e }
   pure (subTrans sub ty)
+
+canonicalizeScheme :: Scheme -> Trans
+canonicalizeScheme (Scheme svars evars ty) = do
+  let s = Map.fromList [ (x,S_Var (SVar n)) | (x,n) <- zip svars [0.. ] ]
+  let i = Map.size s
+  let e = Map.fromList [ (x,E_Var (EVar n)) | (x,n) <- zip evars [i.. ] ]
+  let sub = Subst { s , e }
+  subTrans sub ty
 
 ----------------------------------------------------------------------
 -- svarsOf*
 
-svarsOfTrans :: Trans -> Set SVar
+svarsOfTrans :: Trans -> [SVar] -- TODO: avoid quad
 svarsOfTrans = \case
-  T_Trans m1 m2 -> svarsOfMachine m1 `Set.union` svarsOfMachine m2
+  T_Trans m1 m2 -> svarsOfMachine m1 ++ svarsOfMachine m2
 
-svarsOfMachine :: Machine -> Set SVar
+svarsOfMachine :: Machine -> [SVar]
 svarsOfMachine = \case
   Machine{stack} -> svarsOfStack stack
 
-svarsOfStack :: Stack -> Set SVar
+svarsOfStack :: Stack -> [SVar]
 svarsOfStack = \case
-  S_Cons s e -> svarsOfStack s `Set.union` svarsOfElem e
-  S_Var x -> Set.singleton x -- collect here
-  S_Skolem{} -> Set.empty
+  S_Cons s e -> svarsOfStack s ++ svarsOfElem e
+  S_Var x -> [x] -- collect here
+  S_Skolem{} -> []
 
-svarsOfElem :: Elem -> Set SVar
+svarsOfElem :: Elem -> [SVar]
 svarsOfElem = \case
   E_Numeric n -> svarsOfNumeric n
   E_XT t -> svarsOfTrans t
-  E_Var{} -> Set.empty
+  E_Var{} -> []
 
-svarsOfNumeric :: Numeric -> Set SVar
+svarsOfNumeric :: Numeric -> [SVar]
 svarsOfNumeric = \case
-  N_Number -> Set.empty
+  N_Number -> []
   N_Address c -> svarsOfContents c
 
-svarsOfContents :: Contents -> Set SVar
+svarsOfContents :: Contents -> [SVar]
 svarsOfContents = \case
-  C_Char -> Set.empty
+  C_Char -> []
   C_Elem e -> svarsOfElem e
 
 ----------------------------------------------------------------------
 -- evarsOf*
 
-evarsOfTrans :: Trans -> Set EVar
+evarsOfTrans :: Trans -> [EVar]
 evarsOfTrans = \case
-  T_Trans m1 m2 -> evarsOfMachine m1 `Set.union` evarsOfMachine m2
+  T_Trans m1 m2 -> evarsOfMachine m1 ++ evarsOfMachine m2
 
-evarsOfMachine :: Machine -> Set EVar
+evarsOfMachine :: Machine -> [EVar]
 evarsOfMachine = \case
   Machine{stack} -> evarsOfStack stack
 
-evarsOfStack :: Stack -> Set EVar
+evarsOfStack :: Stack -> [EVar]
 evarsOfStack = \case
-  S_Cons s e -> evarsOfStack s `Set.union` evarsOfElem e
-  S_Var{} -> Set.empty
-  S_Skolem{} -> Set.empty
+  S_Cons s e -> evarsOfStack s ++ evarsOfElem e
+  S_Var{} -> []
+  S_Skolem{} -> []
 
-evarsOfElem :: Elem -> Set EVar
+evarsOfElem :: Elem -> [EVar]
 evarsOfElem = \case
   E_Numeric n -> evarsOfNumeric n
   E_XT t -> evarsOfTrans t
-  E_Var x -> Set.singleton x -- collect here
+  E_Var x -> [x] -- collect here
 
-evarsOfNumeric :: Numeric -> Set EVar
+evarsOfNumeric :: Numeric -> [EVar]
 evarsOfNumeric = \case
-  N_Number -> Set.empty
+  N_Number -> []
   N_Address c -> evarsOfContents c
 
-evarsOfContents :: Contents -> Set EVar
+evarsOfContents :: Contents -> [EVar]
 evarsOfContents = \case
-  C_Char -> Set.empty
+  C_Char -> []
   C_Elem e -> evarsOfElem e
 
 ----------------------------------------------------------------------
@@ -697,13 +717,13 @@ domainS :: Subst -> Set SVar
 domainS Subst{s} = Set.fromList $ Map.keys s
 
 rangeS :: Subst -> Set SVar
-rangeS Subst{s} = Set.unions [ svarsOfStack v | v <- Map.elems s ]
+rangeS Subst{s} = Set.unions [ Set.fromList $ svarsOfStack v | v <- Map.elems s ]
 
 domainE :: Subst -> Set EVar
 domainE Subst{e} = Set.fromList $ Map.keys e
 
 rangeE :: Subst -> Set EVar
-rangeE Subst{e} = Set.unions [ evarsOfElem v | v <- Map.elems e ]
+rangeE Subst{e} = Set.unions [ Set.fromList $ evarsOfElem v | v <- Map.elems e ]
 
 checkInvariant :: Subst -> IO ()
 checkInvariant sub = do
@@ -751,7 +771,7 @@ extendSubstElem sub0@Subst{s,e} key replacement = do
 checkSubstStackOk :: Subst -> SVar -> Stack -> IO ()
 checkSubstStackOk sub key replacement = do
   if (key `Set.member` dom) then report else do
-  if (not (Set.null (dom `Set.intersection` svarsOfStack replacement))) then report else do
+  if (not (Set.null (dom `Set.intersection` Set.fromList (svarsOfStack replacement)))) then report else do
   pure ()
     where
       dom = domainS sub
@@ -766,7 +786,7 @@ checkSubstStackOk sub key replacement = do
 checkSubstElemOk :: Subst -> EVar -> Elem -> IO ()
 checkSubstElemOk sub key replacement = do
   if (key `Set.member` dom) then report else do
-  if (not (Set.null (dom `Set.intersection` evarsOfElem replacement))) then report else do
+  if (not (Set.null (dom `Set.intersection` Set.fromList (evarsOfElem replacement)))) then report else do
   pure ()
     where
       dom = domainE sub

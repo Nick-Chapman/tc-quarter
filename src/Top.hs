@@ -4,6 +4,8 @@ module Top (main) where
 import Text.Printf (printf)
 import System.IO (hFlush, stdout)
 import Control.Monad (when)
+import TypeChecking (extra,tcMachine)
+import Tests (run)
 
 import Execution
   ( kernelEffect
@@ -11,11 +13,10 @@ import Execution
   , Interaction(..), runEff
   )
 
-import TypeChecking (extra,tcMachine)
-
 main :: IO ()
 main = do
   putStrLn "*tc-quarter*"
+  Tests.run
   xs <- sequence
     [ readFile ("../quarter-forth/f/" ++ f)
     | f <-
