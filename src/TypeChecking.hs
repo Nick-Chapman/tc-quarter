@@ -23,7 +23,8 @@ import Execution
 import qualified Execution as X
   ( Machine(..)
 --  , Value(..)
-  , Numb, numbOfValue
+--  , Numb,
+  , numbOfValue
   )
 
 extra :: String
@@ -48,8 +49,8 @@ extra = unlines
   , ":7 ~D ~! ;" -- dup-fetch, TC error
 
 
-  , ":9 i ~1 t ~1 ; " -- should be TC branch mismatch - cycle actually
---  , ":9 i ~1 ~, t ~1 ; " -- with comma is good (and fallthroug ok)
+--  , ":9 i ~1 t ~1 ; " -- should be TC branch mismatch - cycle actually
+  , ":9 i ~1 ~, t ~1 ; " -- with comma is good (and fallthroug ok)
 --  , ":9 i ~1 ~X t ~1 ; " -- exit can stop fallthrough and we are ok
 --  , ":9 i ~1 ~X t ~1~` ; " -- exit can stop fallthrough but branches mismatch
 
@@ -131,9 +132,25 @@ tcStart X.Machine{dispatchTable=dt,mem} c = do
           case slot of
             SlotRet -> pure t0
 
-            SlotCall (AP Branch0) -> do
-              let a' = offsetAddr (slotSize slot) a
-              doBranch t0 a'
+            SlotCall (AP p@Lit) -> do
+              -- skip the literal
+              -- record a stack-push effect
+              -- for now make the type pushed be fully general
+              -- but really it should unify with the lit in the following slot
+              t1 <- tcPrimExec p
+              t2 <- composeTrans t0 t1
+              let a' = checkLitFollowingSlot $ offsetAddr (slotSize slot) a
+              loop t2 a'
+
+            SlotCall (AP p@Branch0) -> do
+              t1 <- tcPrimExec p -- This is the just effect of the bracnh0
+              t2 <- composeTrans t0 t1
+              let (a1,a2) = getBranchDests $ offsetAddr (slotSize slot) a
+              -- careful. branching like this can become exponential
+              t3 <- loop t2 a1
+              t4 <- loop t2 a2
+              unifyTrans t3 t4
+              pure t3
 
             _ -> do
               t1 <- tcSlotExec slot
@@ -141,25 +158,31 @@ tcStart X.Machine{dispatchTable=dt,mem} c = do
               let a' = offsetAddr (slotSize slot) a
               loop t2 a'
 
-    doBranch :: Trans -> Addr -> Infer Trans
-    doBranch t0 a = do
-      let n = fromIntegral $ getBranchDest a
-      -- careful. branching like this can become exponential
-      t1 <- loop t0 (offsetAddr 2 a) -- TODO: 2 is size of lit
-      t2 <- loop t0 (offsetAddr n a)
-      unifyTrans t1 t2
-      pure t1
-
-    getBranchDest :: Addr -> X.Numb
-    getBranchDest a =
+    getBranchDests :: Addr -> (Addr,Addr)
+    getBranchDests a =
       case Map.lookup a mem of
         Nothing ->
           error (printf "doBranch: nothing at address %s" (show a))
         Just slot ->
           case slot of
-            SlotLit v -> X.numbOfValue v
+            SlotLit v -> do
+              let n = fromIntegral $ X.numbOfValue v
+              (offsetAddr 2 a, offsetAddr n a)
             _ ->
-              error (printf "doBranch: unexpected non-lit slot after branch %s"
+              error (printf "doBranch: unexpected non-lit slot after Branch0 %s"
+                     (show slot))
+
+
+    checkLitFollowingSlot :: Addr -> Addr
+    checkLitFollowingSlot a =
+      case Map.lookup a mem of
+        Nothing ->
+          error (printf "checkLitFollowingSlot: nothing at address %s" (show a))
+        Just slot ->
+          case slot of
+            slot@SlotLit{} -> offsetAddr (slotSize slot) a
+            _ ->
+              error (printf "checkLitFollowingSlot: unexpected non-lit slot after Lit %s"
                      (show slot))
 
 
@@ -319,8 +342,10 @@ schemeOfPrim = \case
 
   Add -> scheme $ (s1 ~ num ~ num) ~~> (s1 ~ num) -- TODO: more general - any numerics
 
-  --Branch0 -> scheme $ (s1 ~ num) ~~> s1 -- TODO: unify branches
-  --Lit -> scheme $ s1 ~~> s1 -- TODO: hack as NOP
+  Branch0 -> scheme $ (s1 ~ num) ~~> s1 -- pops one elem
+
+  Lit -> scheme $ s1 ~~> (s1 ~ e1) -- pushes one elem
+
   --Jump -> scheme $ s1 ~~> s1 -- TODO: hack as NOP -- need to stop control flow!!
 
   Drop -> scheme $ s1 ~ e1 ~~> s1
