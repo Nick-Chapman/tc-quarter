@@ -12,18 +12,29 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 
 import Execution
-  ( Slot(..), Addr(..), Value(..), Numb, seeChar, offsetAddr, slotSize
+  ( Slot(..), Addr(..)
+  -- , Value(..)
+  , Numb
+  , seeChar
+  , offsetAddr, slotSize
   , Prim(..)
   )
 
 import qualified Execution as X
   ( Machine(..)
+--  , Value(..)
+  , Numb, numbOfValue
   )
 
 extra :: String
 extra = unlines
-  [ ":~ ^^?> ^??> ^>?> ;" -- dup quarter for convenience
+  [ ":' ^^?> ^??> ;"
+  , ":~ ^^?> ^??> ^>?> ;"
+  , ":# 'L ~L, ~> ~, ;"
+  , ":i ~L ^B?, ~>~H~@ 0# ~, ;"
+  , ":t ~D~H~@~W~-~W~! ;"
 
+  {-
   , ":2 ~O ;"
   , ":3 ~O~O ;"
   , ":4 ~D~@~W~! ;"
@@ -31,25 +42,36 @@ extra = unlines
   , ":6 ~D~H~@~W~-~W~! ;"
   , ":7 ~D ~! ;" -- tc error, yes!
   , ":8 ~D~C~W~! ;" -- tc error -- Char/Num
+-}
+
+  , ":3 ~O~O ;" -- over-over
+  , ":7 ~D ~! ;" -- dup-fetch, TC error
+
+
+  , ":9 i ~1 t ~1 ; " -- should be TC branch mismatch - cycle actually
+--  , ":9 i ~1 ~, t ~1 ; " -- with comma is good (and fallthroug ok)
+--  , ":9 i ~1 ~X t ~1 ; " -- exit can stop fallthrough and we are ok
+--  , ":9 i ~1 ~X t ~1~` ; " -- exit can stop fallthrough but branches mismatch
+
   ]
 
 tcMachine :: X.Machine -> IO ()
-tcMachine X.Machine{dispatchTable=dt,mem} = do
+tcMachine m@X.Machine{dispatchTable=dt,mem} = do
   let _all = [ x | (_,x) <- Map.toList userQDefs ]
-  mapM_ tcDef "'~t2345678"
+  mapM_ tcDef _all --  "379" -- _all -- "'2345678"
   where
     tcDef :: Char -> IO ()
     tcDef c = do
       let slots = slotsForDef c
       printf "%s : %s\n" (seeChar c) (unwords (map seeSlot slots))
 
-      either <- runInfer (tcStart slots)
+      either <- runInfer (tcStart m c)
       case either of
         Left e ->
           printf "ERROR: %s\n" (show e)
 
         Right ty -> do
-          printf ":: %s\n" (show ty)
+          printf "%s :: %s\n" (seeChar c) (show ty)
 
     look :: Addr -> Slot
     look a = maybe undefined id (Map.lookup a mem)
@@ -70,10 +92,10 @@ tcMachine X.Machine{dispatchTable=dt,mem} = do
     -- special case address which are in the dispatchTable
     seeSlot :: Slot -> String
     seeSlot = \case
-      SlotCall (AN n) -> seeUserQ n
-      SlotLit v -> printf "#%s" (seeValue v)
+      --SlotCall (AN n) -> seeUserQ n
+      --SlotLit v -> printf "#%s" (seeValue v)
       slot -> show slot
-
+{-
     seeValue :: Value -> String
     seeValue = \case
       VA (AN n) -> seeUserQ n
@@ -84,28 +106,63 @@ tcMachine X.Machine{dispatchTable=dt,mem} = do
       case Map.lookup n userQDefs of
         Just c -> seeChar c
         Nothing -> show n
-
+-}
     -- Reverse mapping of user-generated defs
     userQDefs :: Map Numb Char
     userQDefs = Map.fromList [ (n,c) | (c,AN n) <- Map.toList dt ]
 
 
 ----------------------------------------------------------------------
--- tc entry point -- TODO: should be at level of address
 
-tcStart :: [Slot] -> Infer Trans
-tcStart = tcSlotsExec
-
-tcSlotsExec :: [Slot] -> Infer Trans
-tcSlotsExec slots = do t <- noTrans; loop t slots
+tcStart :: X.Machine -> Char -> Infer Trans
+tcStart X.Machine{dispatchTable=dt,mem} c = do
+  case Map.lookup c dt of
+    Nothing -> Nope (printf "no dispatch table entry for %s" (seeChar c))
+    Just a -> do
+      t <- noTrans
+      loop t a
   where
-    loop :: Trans -> [Slot] -> Infer Trans
-    loop t0 = \case
-      [] -> pure t0
-      slot:slots -> do
-        t1 <- tcSlotExec slot
-        t2 <- composeTrans t0 t1
-        loop t2 slots
+    loop :: Trans -> Addr -> Infer Trans
+    loop t0 a =
+      case Map.lookup a mem of
+        Nothing ->
+          error (printf "loop: nothing at address %s" (show a))
+        Just slot ->
+          case slot of
+            SlotRet -> pure t0
+
+            SlotCall (AP Branch0) -> do
+              let a' = offsetAddr (slotSize slot) a
+              doBranch t0 a'
+
+            _ -> do
+              t1 <- tcSlotExec slot
+              t2 <- composeTrans t0 t1
+              let a' = offsetAddr (slotSize slot) a
+              loop t2 a'
+
+    doBranch :: Trans -> Addr -> Infer Trans
+    doBranch t0 a = do
+      let n = fromIntegral $ getBranchDest a
+      -- careful. branching like this can become exponential
+      t1 <- loop t0 (offsetAddr 2 a) -- TODO: 2 is size of lit
+      t2 <- loop t0 (offsetAddr n a)
+      unifyTrans t1 t2
+      pure t1
+
+    getBranchDest :: Addr -> X.Numb
+    getBranchDest a =
+      case Map.lookup a mem of
+        Nothing ->
+          error (printf "doBranch: nothing at address %s" (show a))
+        Just slot ->
+          case slot of
+            SlotLit v -> X.numbOfValue v
+            _ ->
+              error (printf "doBranch: unexpected non-lit slot after branch %s"
+                     (show slot))
+
+
 
 composeTrans :: Trans -> Trans -> Infer Trans
 composeTrans e1 e2 = do
@@ -125,12 +182,12 @@ tcSlotExec :: Slot -> Infer Trans
 tcSlotExec slot = case slot of
   SlotCall a -> tcAddrExec a
   SlotRet -> noTrans
-  SlotLit{} -> nope
-  SlotChar{} -> nope
-  SlotEntry{} -> nope
-  SlotString{} -> nope
+  SlotLit{} -> nope "lit" --noTrans -- nope "lit" -- TODO temp hack
+  SlotChar{} -> nope "char"
+  SlotEntry{} -> nope "entry"
+  SlotString{} -> nope "string"
   where
-    nope = Nope (printf "tcSlotExec: %s" (show slot))
+    nope tag = Nope (printf "tcSlotExec(%s): %s" tag (show slot))
 
 tcAddrExec :: Addr -> Infer Trans
 tcAddrExec a = case a of
@@ -261,6 +318,17 @@ schemeOfPrim = \case
   One -> scheme $ s1 ~~> (s1 ~ num)
 
   Add -> scheme $ (s1 ~ num ~ num) ~~> (s1 ~ num) -- TODO: more general - any numerics
+
+  --Branch0 -> scheme $ (s1 ~ num) ~~> s1 -- TODO: unify branches
+  --Lit -> scheme $ s1 ~~> s1 -- TODO: hack as NOP
+  --Jump -> scheme $ s1 ~~> s1 -- TODO: hack as NOP -- need to stop control flow!!
+
+  Drop -> scheme $ s1 ~ e1 ~~> s1
+
+  Emit -> scheme $ s1 ~ num ~~> s1
+
+  Comma -> scheme $ s1 ~ num ~~> s1
+
 
   _ -> Nothing
 

@@ -4,6 +4,7 @@ module Execution
   , Machine(..), machine0
   , Interaction(..), runEff
   , Slot(..), Addr(..), Value(..), Numb, seeChar, offsetAddr, slotSize
+  , numbOfValue
   , Prim(..)
   ) where
 
