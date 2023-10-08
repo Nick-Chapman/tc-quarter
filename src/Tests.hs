@@ -64,7 +64,7 @@ run = Testing.run $ do
   yes "~L '1, ~V" $ s ~~> (s ~ num)
   yes "~L 'D, ~V" $ (s ~ e) ~~> (s ~ e ~ e)
   yes "~L 'P, ~V" $ (s ~ e) ~~> s
-  yes "~L  1, ~+" $ (s ~ num) ~~> (s ~ num)
+  yes "~L  1, ~+" $ (s ~ e) ~~> (s ~ e)
   nox "~L '1, ~+" $ ") ~ Num"
 
 

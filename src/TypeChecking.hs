@@ -398,7 +398,8 @@ schemeOfPrim = \case
   One -> scheme $ s1 ~~> (s1 ~ num)
   Zero -> scheme $ s1 ~~> (s1 ~ num) -- TODO: more general
 
-  Add -> scheme $ (s1 ~ num ~ num) ~~> (s1 ~ num) -- TODO: more general - any numerics
+  --Add -> scheme $ (s1 ~ num ~ num) ~~> (s1 ~ num) -- TODO: more general - any numerics
+  Add -> scheme $ (s1 ~ e1 ~ num) ~~> (s1 ~ e1) -- TODO: too general - TC's 'q'
 
   Branch0 -> scheme $ (s1 ~ num) ~~> s1 -- pops one elem
 
