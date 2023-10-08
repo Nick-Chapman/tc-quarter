@@ -32,18 +32,12 @@ import qualified Execution as X
   )
 
 extra :: String
-extra = unlines []
-{-  [ ":' ^^?> ^??> ;"
-  , ":~ ^^?> ^??> ^>?> ;"
-  , ":# 'L ~L, ~> ~, ;"
-  , ":i ~L ^B?, ~>~H~@ 0# ~, ;"
-  , ":t ~D~H~@~W~-~W~! ;"
-  ]-}
+extra = ""
 
 tcMachine :: X.Machine -> IO ()
 tcMachine m@X.Machine{dispatchTable=dt,mem} = do
   let _all = [ x | (_,x) <- Map.toList userQDefs ]
-  mapM_ tcDef _all -- "'~#it(" -- _all -- "23456" -- _all
+  mapM_ tcDef _all
   where
     tcDef :: Char -> IO ()
     tcDef c = do
@@ -75,12 +69,12 @@ tcMachine m@X.Machine{dispatchTable=dt,mem} = do
     -- special case address which are in the dispatchTable
     _seeSlot :: Slot -> String
     _seeSlot = \case
-      SlotCall (AN n) -> seeUserQ n
-      SlotLit v -> printf "#%s" (seeValue v)
+      --SlotCall (AN n) -> printf "*%s" (seeUserQ n)
+      --SlotLit v -> printf "#%s" (seeValue v)
       slot -> show slot
 
-    seeValue :: Value -> String
-    seeValue = \case
+    _seeValue :: Value -> String
+    _seeValue = \case
       VA (AN n) -> seeUserQ n
       v -> show v
 
@@ -94,40 +88,87 @@ tcMachine m@X.Machine{dispatchTable=dt,mem} = do
     userQDefs :: Map Numb Char
     userQDefs = Map.fromList [ (n,c) | (c,AN n) <- Map.toList dt ]
 
-
 ----------------------------------------------------------------------
 
 tcStart :: X.Machine -> Char -> Infer Trans
 tcStart m@X.Machine{dispatchTable=dt,mem} c = do
   case Map.lookup c dt of
-    Nothing -> Nope (printf "no dispatch table entry for %s" (seeChar c))
-    Just a -> do
-      t <- noTrans
-      tcAddr t a
-  where
+    Nothing ->
+      Nope (printf "no dispatch table entry for %s" (seeChar c))
+    Just (AN n) -> do
+      aVars <- Map.fromList <$> sequence
+        [ do
+            s1 <- S_Var <$> FreshS
+            s2 <- S_Var <$> FreshS
+            let trans = s1 ~~> s2
+            pure (n,trans)
+        | (_,AN n) <- Map.toList dt
+        ]
+      loopA aVars n
+    Just{} -> do
+      Nope (printf "non-user dispatch table entry for %s" (seeChar c))
 
-    tcAddr :: Trans -> Addr -> Infer Trans
-    tcAddr t0 a = do
-      --Message (printf "tcAddr: %s" (show a))
+ where
+  loopA :: Map Numb Trans -> Numb -> Infer Trans
+  loopA aVars n = do
+    t1 <- loop (AN n)
+    let t2 = getAddrVar n
+    unifyTrans t1 t2
+    pure t1
+
+   where
+
+    getAddrVar :: Numb -> Trans
+    getAddrVar n =
+       case Map.lookup n aVars of
+         Nothing -> error "lookup-aVars failed"
+         Just tr -> tr
+
+    loop :: Addr -> Infer Trans
+    loop a = do
+      --Message (printf "loop: %s" (show a))
+      (t1,as) <- tcAddr a
+      --Message (printf "loop: %s: %s" (show a) (show t1))
+      case as of
+        [] ->
+          pure t1
+
+        [a] -> do
+          t2 <- loop a
+          composeTrans t1 t2
+
+        [aX,aY] -> do
+          t2 <- loop aX
+          t2' <- loop aY
+          unifyTrans t2 t2'
+          composeTrans t1 t2
+        _ ->
+          undefined
+
+    tcAddr :: Addr -> Infer (Trans, [Addr])
+    tcAddr a = do
       case Map.lookup a mem of
         Nothing ->
           Nope (printf "tcAddr: nothing at address %s" (show a))
         Just slot ->
-          tcSlot t0 (offsetAddr (slotSize slot) a) slot
+          tcSlot (offsetAddr (slotSize slot) a) slot
 
-    tcSlot :: Trans -> Addr -> Slot -> Infer Trans
-    tcSlot t a slot = do
+    tcSlot :: Addr -> Slot -> Infer (Trans,[Addr])
+    tcSlot a slot = do
       let nope tag = Nope (printf "tcSlot(%s): %s" tag (show slot))
       case slot of
-        SlotLit{} -> nope "lit" --noTrans -- nope "lit" -- TODO temp hack
+        SlotLit{} -> nope "lit"
         SlotChar{} -> nope "char"
         SlotEntry{} -> nope "entry"
         SlotString{} -> nope "string"
-        SlotRet -> pure t
-        SlotCall callAddr -> tcCall t a callAddr
+        SlotRet -> do
+          t <- noTrans
+          pure (t,[])
+        SlotCall callAddr ->
+          tcCall a callAddr
 
-    tcCall :: Trans -> Addr -> Addr -> Infer Trans
-    tcCall t a callAddr = do
+    tcCall :: Addr -> Addr -> Infer (Trans,[Addr])
+    tcCall a callAddr = do
       let nope = Nope (printf "tcCall: %s" (show callAddr))
       case callAddr of
         APE{} -> nope
@@ -135,86 +176,46 @@ tcStart m@X.Machine{dispatchTable=dt,mem} c = do
         AH{} -> nope
         AN{} -> nope -- TODO: calling sub defs
         AP prim ->
-          tcPrim t a prim
+          tcPrim a prim
 
-    tcPrim :: Trans -> Addr -> Prim -> Infer Trans
-    tcPrim t0 a = \case
-
-      -- special handling for primitives which do control flow
-      -- and/or reference embedded values in the instruction stream
+    tcPrim :: Addr -> Prim -> Infer (Trans,[Addr])
+    tcPrim a = \case
       Exit -> do
-        pure t0 -- and dont loop
-
-      Jump -> do -- TODO: pop stack, and tale that type
-        undefined --noTrans -- and dont loop -- TODO this is a hack
-
+        trans <- noTrans
+        pure (trans,[])
+      Jump -> do
+        trans <- tcPrim1 Jump
+        pure (trans,[])
       Branch0 -> do
-        t1 <- tcPrim1 Branch0 -- TODO: inline!
-        t2 <- composeTrans t0 t1
-        let (a1,a2) = getBranchDests m a -- $ offsetAddr (slotSize slot) a
-        -- careful. branching like this can become exponential
-        t3 <- tcAddr t2 a1
-        t4 <- tcAddr t2 a2
-        unifyTrans t3 t4
-        pure t3
-
+        trans <- tcPrim1 Branch0
+        let (a1,a2) = getBranchDests m a
+        pure (trans, [a1,a2])
       Lit -> do
         let (value,a') = expectLit m a
         elem <- tcLitValue value
         stack <- S_Var <$> FreshS
         let trans = stack ~~> (stack ~ elem)
-        t2 <- composeTrans t0 trans
-        tcAddr t2 a'
-
-      -- catch all for standard primitives
+        pure (trans, [a'])
       prim -> do
-        t1 <- tcPrim1 prim
-        t2 <- composeTrans t0 t1
-        tcAddr t2 a
+        trans <- tcPrim1 prim
+        pure (trans,[a])
 
     tcLitValue :: Value -> Infer Elem
     tcLitValue = \case
       VN{} -> pure num
       VC{} -> pure num -- needed for standard def of '('
       VA addr -> do
-        --e1 <- E_Var <$> FreshE
-        --pure e1
         litAddr addr
-
-
-    -- versions dont TC a sequence of slots, but just what is
-    -- at a single address. TODO: lots of cleanup!
-    -- Also they return an Elem type, not a Trans. AHA
 
     litAddr :: Addr -> Infer Elem
     litAddr = \case
       AP prim -> do
         trans <- tcPrim1 prim
         pure (E_XT trans)
-      a -> do
-        Message (printf "litAddr: %s" (show a))
-        case Map.lookup a mem of
-          Nothing ->
-            Nope (printf "litAddr: nothing at address %s" (show a))
-          Just slot ->
-            litSlot slot
-
-    litSlot :: Slot -> Infer Elem
-    litSlot slot = do
-      let nope tag = Nope (printf "litSlot(%s): %s" tag (show slot))
-      case slot of
-        -- TODO: These are not ill typed! because we are not executing
-        SlotLit{} -> nope "lit" --noTrans -- nope "lit" -- TODO temp hack
-        SlotChar{} -> pure addr_char -- nope "char"
-        SlotEntry{} -> nope "entry"
-        SlotString{} -> nope "string"
-        SlotRet ->
-          undefined -- noTrans  -- TODO: example to provoke
-        --SlotCall callAddr -> litCall callAddr
-        SlotCall{} ->
-          --undefined
-           nope "call"
-
+      AN _n -> do
+        pure (E_XT (getAddrVar _n))
+      a ->
+        Nope (printf "litAddr: %s" (show a))
 
 
 getBranchDests :: X.Machine -> Addr -> (Addr,Addr)
@@ -396,7 +397,7 @@ schemeOfPrim = \case
 
   Lit -> scheme $ s1 ~~> (s1 ~ e1) -- pushes one elem -- TODO: e1 should be skolem
 
-  --Jump -> scheme $ s1 ~~> s1 -- TODO: hack as NOP -- need to stop control flow!!
+  Jump -> scheme $ (s1 ~ xt(s1 ~~> s2)) ~~> s2
 
   Drop -> scheme $ s1 ~ e1 ~~> s1
 

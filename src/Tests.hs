@@ -49,7 +49,7 @@ run = Testing.run $ do
   yes "~D~H~@~W~-~W~! " $ (s ~ addr num) ~~> s -- then
 
   yes "~D~@~W~!" $ (s ~ addr e1) ~~> s
-  nox "~D~C~W~!" $ "Char ~ Num"
+  nox "~D~C~W~!" $ "Num ~ Char"
 
   nox "i ~1    t ~1" $ "stack cyclic"
   yes "i ~1 ~, t ~1" $ (s ~ num) ~~> (s ~ num)
