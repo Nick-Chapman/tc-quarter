@@ -54,7 +54,7 @@ runTest n (Test (TestCase{setup,code}) x) = do
       case (x,e) of
         (ExpectError{frag}, Left err) -> do
           if frag `isInfixOf` (show err) then pure True else do
-            printf "(%d) %s (missing frag %s in error) %s\n" n code (show frag) (show err)
+            printf "(%d) %s (missing frag %s in error)\ngot: %s\n" n code (show frag) (show err)
             pure False
         (ExpectInfer{}, Left err) -> do
           printf "(%d) %s (unexpected error)\ngot: %s\n" n code (show err)
@@ -66,7 +66,7 @@ runTest n (Test (TestCase{setup,code}) x) = do
           let want = canonicalizeScheme scheme
           let got = canonicalizeScheme (makeScheme trans)
           if (want == got) then pure True else do
-            printf "%s (infered type not as expected)\n" code
+            printf "(%d) %s (infered type not as expected)\n" n code
             printf "want: %s\n" (show want)
             printf "got: %s\n" (show got)
             pure False

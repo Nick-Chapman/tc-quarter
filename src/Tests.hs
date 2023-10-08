@@ -30,6 +30,11 @@ run = Testing.run $ do
     nox :: String -> String -> Testing ()
     nox code frag = test TestCase { setup, code } ExpectError { frag }
 
+    see :: String -> Testing ()
+    see code = test TestCase { setup, code } ExpectError { frag = "WHAT" }
+
+  let _ = see
+
   yes "  ~?~>" $ (s ~ num) ~~> s
   yes "~^~?~>" $ s ~~> s
 
@@ -46,8 +51,22 @@ run = Testing.run $ do
   yes "~D~@~W~!" $ (s ~ addr e1) ~~> s
   nox "~D~C~W~!" $ "Char ~ Num"
 
-  nox "i ~1    t ~1" "stack cyclic"
+  nox "i ~1    t ~1" $ "stack cyclic"
   yes "i ~1 ~, t ~1" $ (s ~ num) ~~> (s ~ num)
+  yes "i ~1 ~X t ~1" $ (s ~ num) ~~> (s ~ num)
+  nox "i ~1 ~X t"    $ "stack cyclic"
+  yes "i    ~X t"    $ (s ~ num) ~~> s
+
+  yes "~1~X" $ s ~~> (s ~ num)
+
+
+  nox "~L  1, ~V" $ "Num ~ ("
+  yes "~L '1, ~V" $ s ~~> (s ~ num)
+  yes "~L 'D, ~V" $ (s ~ e) ~~> (s ~ e ~ e)
+  yes "~L 'P, ~V" $ (s ~ e) ~~> s
+  yes "~L  1, ~+" $ (s ~ num) ~~> (s ~ num)
+  nox "~L '1, ~+" $ ") ~ Num"
+
 
   where
 
@@ -62,6 +81,7 @@ run = Testing.run $ do
 
     mkSVar = S_Var . SVar
 
+    e = mkEVar 33
     e1 = mkEVar 44
     e2 = mkEVar 55
 

@@ -613,6 +613,8 @@ data Entry = Entry
   , immediate :: Bool
   }
 
+-- TODO: Pointless to distinguish Char/Numb
+-- but we do want to distingish Address from Data -- for typechecking Lit
 data Value = VC Char | VN Numb | VA Addr deriving (Eq)
 
 type Numb = Word16
