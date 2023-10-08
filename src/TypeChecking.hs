@@ -69,7 +69,7 @@ tcMachine m@X.Machine{dispatchTable=dt,mem} = do
     -- special case address which are in the dispatchTable
     _seeSlot :: Slot -> String
     _seeSlot = \case
-      --SlotCall (AN n) -> printf "*%s" (seeUserQ n)
+      SlotCall (AN n) -> printf "*%s" (seeUserQ n)
       --SlotLit v -> printf "#%s" (seeValue v)
       slot -> show slot
 
@@ -174,7 +174,13 @@ tcStart m@X.Machine{dispatchTable=dt,mem} c = do
         APE{} -> nope
         AS{} -> nope
         AH{} -> nope
-        AN{} -> nope -- TODO: calling sub defs
+
+        AN n -> do
+          -- TODO: calling sub defs -- need to maintain somekind of type env
+          -- currently we just get an unbound trans of from : s1 -- s2
+          let trans = getAddrVar n
+          pure (trans, [a])
+
         AP prim ->
           tcPrim a prim
 
@@ -212,8 +218,8 @@ tcStart m@X.Machine{dispatchTable=dt,mem} c = do
       AP prim -> do
         trans <- tcPrim1 prim
         pure (E_XT trans)
-      AN _n -> do
-        pure (E_XT (getAddrVar _n))
+      AN n -> do
+        pure (E_XT (getAddrVar n))
       a ->
         Nope (printf "litAddr: %s" (show a))
 
@@ -390,6 +396,7 @@ schemeOfPrim = \case
   Store -> scheme $ (s1 ~ e1 ~ addr e1) ~~> s1
 
   One -> scheme $ s1 ~~> (s1 ~ num)
+  Zero -> scheme $ s1 ~~> (s1 ~ num) -- TODO: more general
 
   Add -> scheme $ (s1 ~ num ~ num) ~~> (s1 ~ num) -- TODO: more general - any numerics
 
@@ -404,14 +411,25 @@ schemeOfPrim = \case
   Emit -> scheme $ s1 ~ num ~~> s1
 
   Comma -> scheme $ s1 ~ num ~~> s1 -- overly specific
+  C_Comma -> scheme $ s1 ~ num ~~> s1
 
   Equal -> scheme $ (s1 ~ e1 ~ e1) ~~> (s1 ~ num)
   LessThan -> scheme $ (s1 ~ e1 ~ e1) ~~> (s1 ~ num)
 
   IsHidden -> scheme $ (s1 ~ xt (s2 ~~> s3)) ~~> (s1 ~ num)
-  XtToNext -> scheme $ (s1 ~ xt (s2 ~~> s3)) ~~> (s1 ~ xt (s4 ~~> s5)) -- skolen!
+  IsImmediate -> scheme $ (s1 ~ xt (s2 ~~> s3)) ~~> (s1 ~ num)
+  XtToNext -> scheme $ (s1 ~ xt (s2 ~~> s3)) ~~> (s1 ~ xt (s4 ~~> s5)) -- skolem!
 
   Execute -> scheme $ (s1 ~ xt(s1 ~~> s2)) ~~> s2
+
+  CR -> scheme $ (s1 ~~> s1)
+  CrashOnlyDuringStartup -> scheme $ (s1 ~~> s1)
+
+  Latest -> scheme $ s1 ~~> (s1 ~ xt (S_Skolem "S1" ~~> S_Skolem "S2"))
+
+  XtToName -> scheme $ (s1 ~ xt (s2 ~~> s3)) ~~> (s1 ~ addr_char)
+
+  RetComma -> scheme $ (s1 ~~> s1)
 
   _ -> Nothing
 
