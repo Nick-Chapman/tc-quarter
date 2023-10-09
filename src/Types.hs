@@ -120,7 +120,7 @@ instance Show Machine where
 instance Show Stack where
   show = \case
     S_Cons s v -> printf "%s.%s" (show s) (show v)
-    S_Skolem x -> x
+    S_Skolem x -> x -- TODO: just need one, S?
     S_Var v -> show v
 
 instance Show Elem where

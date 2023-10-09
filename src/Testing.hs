@@ -4,8 +4,9 @@ module Testing (test,run,Testing,TestCase(..),Expect(..)) where
 import Control.Monad (ap,liftM)
 import Data.List (isInfixOf)
 import Execution (Interaction(..))
+import Infer (runInfer,canonicalizeScheme)
 import Text.Printf (printf)
-import TypeChecking (tcStart,runInfer,canonicalizeScheme)
+import TypeChecking (tcStart)
 import Types (Scheme,makeScheme)
 import qualified Execution as X (interaction,State)
 

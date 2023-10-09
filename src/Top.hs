@@ -2,12 +2,11 @@
 module Top (main) where
 
 import Control.Monad (when)
+import Execution (Interaction(..))
 import System.IO (hFlush, stdout)
 import Tests (run)
 import Text.Printf (printf)
-import TypeChecking (extra,tcMachine)
-
-import Execution (Interaction(..))
+import TypeChecking (tcMachine)
 import qualified Execution as X (interaction,State(..))
 
 main :: IO ()
@@ -30,7 +29,7 @@ _main = do
         , "start.f"
         ]
     ]
-  go (concat (extra:xs++["umm\nz cr\n"]))
+  go (concat (xs++["umm\nz cr\n"]))
 
 go :: String -> IO ()
 go s = runInteraction s X.interaction
