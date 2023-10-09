@@ -21,15 +21,15 @@ _main = do
     [ readFile ("../quarter-forth/f/" ++ f)
     | f <-
         [ "quarter.q"
-        , "forth.f"
-        , "tools.f"
+        --, "forth.f"
+        --, "tools.f"
         --, "regression.f"
-        , "examples.f"
+        --, "examples.f"
         --, "primes.f"
-        , "start.f"
+        --, "start.f"
         ]
     ]
-  go (concat (xs++["umm\nz cr\n"]))
+  go (concat (xs)) -- ++["umm\nz cr\n"]))
 
 go :: String -> IO ()
 go s = runInteraction s X.interaction

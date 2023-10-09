@@ -1,87 +1,83 @@
 
 module PrimTyping
-  ( schemeOfPrim
+  ( typeOfPrim
   ) where
 
 import Prim (Prim(..))
 
 import Types
-  ( Scheme, makeScheme
+  ( Trans
   , (~~>), (~), xt, num, addr, addr_char, mkSVar, mkEVar, skolem
   )
 
-schemeOfPrim :: Prim -> Maybe Scheme
-schemeOfPrim = \case
+typeOfPrim :: Prim -> Trans
+typeOfPrim = \case
+  Add -> (s ~ e1 ~ num) ~~> (s ~ e1) -- TODO: only allow numerics
+  Branch0 -> (s ~ num) ~~> s
+  CR -> (s ~~> s)
+  C_Comma -> s ~ num ~~> s
+  C_Fetch -> (s ~ addr_char) ~~> (s ~ num)
+  Comma -> s ~ num ~~> s -- TODO: overly specific; allow only numerics
+  CompileComma -> (s ~ xt (s2 ~~> s3)) ~~> s
+  CrashOnlyDuringStartup -> (s ~~> s)
+  Dispatch -> (s ~ num) ~~> (s ~ xt (skolem "Sx" ~~> skolem "Sy"))
+  Drop -> s ~ e1 ~~> s
+  Dup -> (s ~ e1) ~~> (s ~ e1 ~ e1)
+  Emit -> s ~ num ~~> s
+  Equal -> (s ~ e1 ~ e1) ~~> (s ~ num)
+  Execute -> (s ~ xt(s ~~> s2)) ~~> s2
+  Fetch -> (s ~ addr e1) ~~> (s ~ e1)
+  HerePointer -> s ~~> (s ~ addr (addr e1))
+  IsHidden -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ num)
+  IsImmediate -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ num)
+  Jump -> (s ~ xt(s ~~> s2)) ~~> s2
+  Key -> s ~~> (s ~ num)
+  Latest -> s ~~> (s ~ xt (skolem "Sx" ~~> skolem "Sy"))
+  LessThan -> (s ~ e1 ~ e1) ~~> (s ~ num)
+  Lit -> s ~~> (s ~ e1) -- TODO: e1 should be skolem
+  Minus -> (s ~ e1 ~ e1) ~~> (s ~ num) -- TODO: only allow numerics!
+  One -> s ~~> (s ~ num)
+  Over -> (s ~ e1 ~ e2) ~~> (s ~ e1 ~ e2 ~ e1)
+  RetComma -> (s ~~> s)
+  Store -> (s ~ e1 ~ addr e1) ~~> s
+  Swap -> (s ~ e1 ~ e2) ~~> (s ~ e2 ~ e1)
+  XtToName -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ addr_char)
+  XtToNext -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ xt (s4 ~~> s5)) -- TODO: skolem!
+  Zero -> s ~~> (s ~ num) -- TODO: more general
 
-  Key -> scheme $ s1 ~~> (s1 ~ num)
-
-  Dispatch -> scheme $ (s1 ~ num) ~~> (s1 ~ xt (skolem "S1" ~~> skolem "S2"))
-
-  CompileComma -> scheme $ (s1 ~ xt (s2 ~~> s3)) ~~> s1
-
-  Over -> scheme $ (s1 ~ e1 ~ e2) ~~> (s1 ~ e1 ~ e2 ~ e1)
-
-  Dup -> scheme $ (s1 ~ e1) ~~> (s1 ~ e1 ~ e1)
-
-  Swap -> scheme $ (s1 ~ e1 ~ e2) ~~> (s1 ~ e2 ~ e1)
-
-  Minus -> scheme $ (s1 ~ e1 ~ e1) ~~> (s1 ~ num) -- TODO: only allow numerics!
-  --Minus -> scheme $ (s1 ~ num ~ num) ~~> (s1 ~ num) -- TODO: more general - any numerics!
-
-  HerePointer -> scheme $ s1 ~~> (s1 ~ addr (addr e1))
-
-  Fetch -> scheme $ (s1 ~ addr e1) ~~> (s1 ~ e1)
-  C_Fetch -> scheme $ (s1 ~ addr_char) ~~> (s1 ~ num)
-
-  Store -> scheme $ (s1 ~ e1 ~ addr e1) ~~> s1
-
-  One -> scheme $ s1 ~~> (s1 ~ num)
-  Zero -> scheme $ s1 ~~> (s1 ~ num) -- TODO: more general
-
-  --Add -> scheme $ (s1 ~ num ~ num) ~~> (s1 ~ num) -- TODO: more general - any numerics
-  Add -> scheme $ (s1 ~ e1 ~ num) ~~> (s1 ~ e1) -- TODO: too general - TC's 'q'
-
-  Branch0 -> scheme $ (s1 ~ num) ~~> s1 -- pops one elem
-
-  Lit -> scheme $ s1 ~~> (s1 ~ e1) -- pushes one elem -- TODO: e1 should be skolem
-
-  Jump -> scheme $ (s1 ~ xt(s1 ~~> s2)) ~~> s2
-
-  Drop -> scheme $ s1 ~ e1 ~~> s1
-
-  Emit -> scheme $ s1 ~ num ~~> s1
-
-  Comma -> scheme $ s1 ~ num ~~> s1 -- overly specific
-  C_Comma -> scheme $ s1 ~ num ~~> s1
-
-  Equal -> scheme $ (s1 ~ e1 ~ e1) ~~> (s1 ~ num)
-  LessThan -> scheme $ (s1 ~ e1 ~ e1) ~~> (s1 ~ num)
-
-  IsHidden -> scheme $ (s1 ~ xt (s2 ~~> s3)) ~~> (s1 ~ num)
-  IsImmediate -> scheme $ (s1 ~ xt (s2 ~~> s3)) ~~> (s1 ~ num)
-  XtToNext -> scheme $ (s1 ~ xt (s2 ~~> s3)) ~~> (s1 ~ xt (s4 ~~> s5)) -- skolem!
-
-  Execute -> scheme $ (s1 ~ xt(s1 ~~> s2)) ~~> s2
-
-  CR -> scheme $ (s1 ~~> s1)
-  CrashOnlyDuringStartup -> scheme $ (s1 ~~> s1)
-
-  Latest -> scheme $ s1 ~~> (s1 ~ xt (skolem "S1" ~~> skolem "S2"))
-
-  XtToName -> scheme $ (s1 ~ xt (s2 ~~> s3)) ~~> (s1 ~ addr_char)
-
-  RetComma -> scheme $ (s1 ~~> s1)
-
-  _ -> Nothing
+  Kdx_K -> undefined
+  Kdx_D -> undefined
+  Kdx_X -> undefined
+  SetTabEntry -> undefined
+  Nop -> undefined
+  Branch -> undefined
+  Exit -> undefined
+  Mul -> undefined
+  Xor -> undefined
+  EntryComma  -> undefined
+  Crash  -> undefined
+  FlipImmediate -> undefined
+  FlipHidden -> undefined
+  FromReturnStack -> undefined
+  ToReturnStack -> undefined
+  DivMod -> undefined
+  KeyNonBlocking -> undefined
+  C_Store -> undefined
+  BitShiftRight -> undefined
+  Sp -> undefined
+  Sp0 -> undefined
+  ReturnStackPointer -> undefined
+  ReturnStackPointerBase -> undefined
+  GetKey -> undefined
+  Time -> undefined
+  StartupIsComplete -> undefined
+  EchoOn -> undefined
 
   where
-    scheme = Just . makeScheme
-
-    s1 = mkSVar 11
-    s2 = mkSVar 22
-    s3 = mkSVar 33
-    s4 = mkSVar 44
-    s5 = mkSVar 55
-
-    e1 = mkEVar 111
-    e2 = mkEVar 222
+    s = mkSVar 101
+    s2 = mkSVar 102
+    s3 = mkSVar 103
+    s4 = mkSVar 104
+    s5 = mkSVar 105
+    e1 = mkEVar 106
+    e2 = mkEVar 107

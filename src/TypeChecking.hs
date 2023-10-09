@@ -20,14 +20,15 @@ import Execution
   )
 
 import Types
-  ( Trans(..)
+  ( makeScheme
+  , Trans(..)
   , Machine(..)
   , Stack(..)
   , Elem(..)
   , (~~>), (~), num
   )
 
-import PrimTyping (schemeOfPrim)
+import PrimTyping (typeOfPrim)
 
 import Infer
   ( Infer(..), runInfer
@@ -270,10 +271,6 @@ noTrans = do
   pure (T_Trans m m)
 
 tcPrim1 :: Prim -> Infer Trans
-tcPrim1 prim =
-  case schemeOfPrim prim of
-    Nothing -> Nope (printf "tcPrim1: %s" (show prim))
-    Just scheme -> do
-      t <- instantiateScheme scheme
-      --Message (printf "%s:: %s" (show prim) (show t))
-      pure t
+tcPrim1 prim = do
+  let scheme = makeScheme (typeOfPrim prim)
+  instantiateScheme scheme
