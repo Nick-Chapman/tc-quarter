@@ -22,7 +22,6 @@ import Execution
   , Numb
   , seeChar
   , offsetAddr, slotSize
-  , Prim(..)
   , Value(..)
   )
 
@@ -30,6 +29,8 @@ import qualified Execution as X
   ( Machine(..) -- TODO: choose different names for exection & type checking types!
   , numbOfValue
   )
+
+import Prim (Prim(..))
 
 extra :: String
 extra = ""

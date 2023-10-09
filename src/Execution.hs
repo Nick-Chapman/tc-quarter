@@ -5,7 +5,6 @@ module Execution
   , Interaction(..), runEff
   , Slot(..), Addr(..), Value(..), Numb, seeChar, offsetAddr, slotSize
   , numbOfValue
-  , Prim(..)
   ) where
 
 import qualified Data.Map as Map
@@ -15,40 +14,7 @@ import Data.Word (Word16)
 import Text.Printf (printf)
 import Data.Char as Char (chr,ord)
 import Data.Bits (xor)
-
-data Prim
-  = Kdx_K | Kdx_D | Kdx_X -- TODO: meh
-  | Key | Dispatch | SetTabEntry
-  | Execute | Exit | Jump
-  | Emit | CR | Nop
-  | HerePointer
-  | CompileComma | RetComma | Comma | C_Comma
-  | Lit | Branch0 | Branch
-  | Fetch | Store
-  | C_Fetch
-  | Dup | Swap | Over | Drop
-  | Zero | One | Minus | Add | Mul | Equal | LessThan | Xor
-  | EntryComma | XtToNext | XtToName | Latest | IsHidden | IsImmediate
-  | Crash
-  | CrashOnlyDuringStartup
-  -- Not in dispatch table; available in dictionary only
-  | FlipImmediate
-  | FlipHidden
-  | FromReturnStack
-  | ToReturnStack
-  | DivMod
-  | KeyNonBlocking
-  | C_Store
-  | BitShiftRight
-  | Sp
-  | Sp0
-  | ReturnStackPointer
-  | ReturnStackPointerBase
-  | GetKey
-  | Time
-  | StartupIsComplete
-  | EchoOn
-  deriving (Eq,Ord,Show,Enum,Bounded)
+import Prim
 
 quarterDispatch :: [(Char,Prim)]
 quarterDispatch =
