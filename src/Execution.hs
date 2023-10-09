@@ -1,8 +1,6 @@
 
 module Execution
-  ( kernelEffect
-  , Machine(..), machine0
-  , Interaction(..), runEff
+  ( interaction, Interaction(..), State(..)
   , Slot(..), Addr(..), Value(..), Numb, seeChar, offsetAddr, slotSize
   , numbOfValue
   ) where
@@ -15,6 +13,9 @@ import Text.Printf (printf)
 import Data.Char as Char (chr,ord)
 import Data.Bits (xor)
 import Prim
+
+interaction :: Interaction
+interaction = runEff machine0 kernelEffect
 
 quarterDispatch :: [(Char,Prim)]
 quarterDispatch =
@@ -116,13 +117,13 @@ kernelDictionary =
   ]
 
 data Interaction
-  = IHalt Machine
-  | IError String Machine
+  = IHalt State
+  | IError String State
   | ICR Interaction
   | IPut Char Interaction
   | IGet (Maybe Char -> Interaction)
-  | IDebug Machine Interaction
-  | IDebugMem Machine Interaction
+  | IDebug State Interaction
+  | IDebugMem State Interaction
   | IMessage String Interaction
 
 kernelEffect :: Eff ()
@@ -319,7 +320,8 @@ prim1 = \case
     let Entry{immediate} = entryOfSlot slot
     Push (valueOfBool immediate)
   CrashOnlyDuringStartup -> do
-    Abort "CrashOnlyDuringStartup"
+    --Abort "CrashOnlyDuringStartup"
+    pure ()
   Crash -> do
     Abort "Crash"
   FlipImmediate -> do
@@ -424,13 +426,13 @@ data Eff a where
   Here :: Eff Addr
   Allot :: Int -> Eff ()
 
-runEff :: Machine -> Eff () -> Interaction
+runEff :: State -> Eff () -> Interaction
 runEff m e = loop m e k0
   where
-    k0 :: () -> Machine -> Interaction
+    k0 :: () -> State -> Interaction
     k0 () m = IHalt m
 
-    loop :: Machine -> Eff a -> (a -> Machine -> Interaction) -> Interaction
+    loop :: State -> Eff a -> (a -> State -> Interaction) -> Interaction
     loop m e k = case e of
       Return a -> k a m
       Bind e f -> loop m e $ \a m -> loop m (f a) k
@@ -439,67 +441,67 @@ runEff m e = loop m e k0
       Message s -> do IMessage s $ k () m
       Abort mes -> IError mes m
       Tick -> do
-        let Machine{tick} = m
+        let State{tick} = m
         k tick m { tick = tick + 1 }
       Get -> IGet (\case Just c -> k c m; Nothing -> k0 () m)
       Put c -> IPut c $ k () m
       E_CR -> ICR $ k () m
       LookupDT c -> do
-        let Machine{dispatchTable=dt} = m
+        let State{dispatchTable=dt} = m
         case Map.lookup c dt of
           Nothing -> IError (show ("lookupDT",c)) m
           Just a -> k a m
       UpdateDT c a -> do
-        let Machine{dispatchTable=dt} = m
+        let State{dispatchTable=dt} = m
         k () m { dispatchTable = Map.insert c a dt }
       LookupMem (AS s) -> k (SlotString s) m -- super duper special case
       UpdateMem (a@AS{}) _ -> IError (show ("UpdateMem",a)) m
       LookupMem a -> do
-        let Machine{mem} = m
+        let State{mem} = m
         case Map.lookup a mem of
           Just x -> k x m
           Nothing -> IError (show ("lookupMem",a)) m
       UpdateMem a x -> do
-        let Machine{mem} = m
+        let State{mem} = m
         k () m { mem = Map.insert a x mem }
       Push v -> do
-        let Machine{pstack,sp,mem} = m
+        let State{pstack,sp,mem} = m
         let sp' = offsetAddr (-2) sp
         k () m { pstack = v:pstack
                , sp = sp', mem = Map.insert sp' (SlotLit v) mem
                }
       Pop -> do
-        let Machine{pstack,sp,mem} = m
+        let State{pstack,sp,mem} = m
         case pstack of
           [] -> error "Pop[]"
           _:pstack -> do
             let v = valueOfSlot (maybe undefined id $ Map.lookup sp mem)
             k v m { pstack, sp = offsetAddr 2 sp }
       StackPointer -> do
-        let Machine{sp} = m
+        let State{sp} = m
         k sp m
       RPush v -> do
-        let Machine{rstack} = m
+        let State{rstack} = m
         k () m { rstack = v:rstack }
       RPop -> do
-        let Machine{rstack} = m
+        let State{rstack} = m
         case rstack of
           [] -> error "RPop[]"
           v:rstack -> k v m { rstack }
       E_Latest -> do
-        let Machine{latest} = m
+        let State{latest} = m
         k latest m
       SetLatest latest -> do
         k () m { latest }
       HereAddr -> do
         k addrOfHere m
       Here -> do
-        let Machine{mem} = m
+        let State{mem} = m
         let err = error "Here"
         let slot = maybe err id $ Map.lookup addrOfHere mem
         k (addrOfValue (valueOfSlot slot)) m
       Allot n -> do
-        let Machine{mem} = m
+        let State{mem} = m
         let err = error "Allot"
         let slot = maybe err id $ Map.lookup addrOfHere mem
         let a = addrOfValue (valueOfSlot slot)
@@ -507,8 +509,8 @@ runEff m e = loop m e k0
         let slot' = SlotLit (valueOfAddr a')
         k () m { mem = Map.insert addrOfHere slot' mem }
 
-
-data Machine = Machine
+-- Stae of the execution machine
+data State = State
   { pstack :: [Value] -- TODO: kill
   , sp :: Addr
   , rstack :: [Value]
@@ -518,13 +520,13 @@ data Machine = Machine
   , latest :: Addr
   }
 
-instance Show Machine where
-  show Machine{pstack=_p,rstack=_r} = do
+instance Show State where
+  show State{pstack=_p,rstack=_r} = do
     -- TODO show param-stack using sp/mem
     printf "%s ; %s" (show (reverse _p)) (show _r)
 
-machine0 :: Machine
-machine0 = Machine
+machine0 :: State
+machine0 = State
   { pstack = []
   , sp = paramStackBase
   , rstack = []

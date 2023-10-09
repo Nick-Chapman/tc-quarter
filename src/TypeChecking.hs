@@ -29,21 +29,19 @@ import Execution
   , Numb
   , seeChar
   , offsetAddr, slotSize
+  , numbOfValue
   , Value(..)
   )
 
-import qualified Execution as X
-  ( Machine(..) -- TODO: choose different names for exection & type checking types!
-  , numbOfValue
-  )
+import qualified Execution as X(State(..))
 
 import Prim (Prim(..))
 
 extra :: String
 extra = ""
 
-tcMachine :: X.Machine -> IO ()
-tcMachine m@X.Machine{dispatchTable=dt,mem} = do
+tcMachine :: X.State -> IO ()
+tcMachine m@X.State{dispatchTable=dt,mem} = do
   let _all = [ x | (_,x) <- Map.toList userQDefs ]
   mapM_ tcDef _all
   where
@@ -98,8 +96,8 @@ tcMachine m@X.Machine{dispatchTable=dt,mem} = do
 
 ----------------------------------------------------------------------
 
-tcStart :: X.Machine -> Char -> Infer Trans
-tcStart m@X.Machine{dispatchTable=dt,mem} c = do
+tcStart :: X.State -> Char -> Infer Trans
+tcStart m@X.State{dispatchTable=dt,mem} c = do
   case Map.lookup c dt of
     Nothing ->
       Nope (printf "no dispatch table entry for %s" (seeChar c))
@@ -232,23 +230,23 @@ tcStart m@X.Machine{dispatchTable=dt,mem} c = do
         Nope (printf "litAddr: %s" (show a))
 
 
-getBranchDests :: X.Machine -> Addr -> (Addr,Addr)
-getBranchDests X.Machine{mem} a =
+getBranchDests :: X.State -> Addr -> (Addr,Addr)
+getBranchDests X.State{mem} a =
   case Map.lookup a mem of
     Nothing ->
       error (printf "doBranch: nothing at address %s" (show a))
     Just slot ->
       case slot of
         SlotLit v -> do
-          let n = fromIntegral $ X.numbOfValue v
+          let n = fromIntegral $ numbOfValue v
           (offsetAddr 2 a, offsetAddr n a)
         _ ->
           error (printf "doBranch: unexpected non-lit slot after Branch0 %s"
                  (show slot))
 
 
-expectLit :: X.Machine -> Addr -> (Value,Addr)
-expectLit X.Machine{mem} a =
+expectLit :: X.State -> Addr -> (Value,Addr)
+expectLit X.State{mem} a =
   case Map.lookup a mem of
     Nothing ->
       error (printf "expectLit: nothing at address %s" (show a))

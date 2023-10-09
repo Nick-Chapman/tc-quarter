@@ -5,9 +5,9 @@ import Control.Monad (ap,liftM)
 import Data.List (isInfixOf)
 import Execution (Interaction(..))
 import Text.Printf (printf)
-import Types (Scheme,makeScheme)
 import TypeChecking (tcStart,runInfer,canonicalizeScheme)
-import qualified Execution as X
+import Types (Scheme,makeScheme)
+import qualified Execution as X (interaction,State)
 
 run :: Testing () -> IO ()
 run testing = do
@@ -44,8 +44,7 @@ data Expect = ExpectError { frag :: String } | ExpectInfer Scheme
 
 runTest :: Int -> Test -> IO Bool
 runTest n (Test (TestCase{setup,code}) x) = do
-  let i = X.runEff X.machine0 X.kernelEffect -- TODO: move to Execution
-  mm <- runInteraction (setup++":z"++code++";") i
+  mm <- runInteraction (setup++":z"++code++";") X.interaction
   case mm of
     Left err -> do
       printf "(%d) %s (execution failed)\nerr: %s\n" n code err
@@ -72,10 +71,10 @@ runTest n (Test (TestCase{setup,code}) x) = do
             printf "got: %s\n" (show got)
             pure False
 
-runInteraction :: String -> Interaction -> IO (Either String X.Machine)
+runInteraction :: String -> Interaction -> IO (Either String X.State)
 runInteraction = loop
   where
-    loop :: String -> Interaction -> IO (Either String X.Machine)
+    loop :: String -> Interaction -> IO (Either String X.State)
     loop inp = \case
       IHalt m -> do pure (Right m)
       IError s _m -> do pure (Left s)

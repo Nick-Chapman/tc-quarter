@@ -1,17 +1,14 @@
 
 module Top (main) where
 
-import Text.Printf (printf)
-import System.IO (hFlush, stdout)
 import Control.Monad (when)
-import TypeChecking (extra,tcMachine)
+import System.IO (hFlush, stdout)
 import Tests (run)
+import Text.Printf (printf)
+import TypeChecking (extra,tcMachine)
 
-import Execution
-  ( kernelEffect
-  , Machine(..), machine0
-  , Interaction(..), runEff
-  )
+import Execution (Interaction(..))
+import qualified Execution as X (interaction,State(..))
 
 main :: IO ()
 main = do
@@ -25,35 +22,30 @@ _main = do
     [ readFile ("../quarter-forth/f/" ++ f)
     | f <-
         [ "quarter.q"
-        -- , "forth.f"
-        -- , "tools.f"
-        -- , "regression.f"
-        -- , "examples.f"
-        -- , "primes.f"
-        -- , "start.f"
+        , "forth.f"
+        , "tools.f"
+        --, "regression.f"
+        , "examples.f"
+        --, "primes.f"
+        , "start.f"
         ]
     ]
-  go (concat (extra:xs))
+  go (concat (extra:xs++["umm\nz cr\n"]))
 
 go :: String -> IO ()
-go s = do
-  let e = kernelEffect
-  let m = machine0
-  let i = runEff m e
-  runInteraction s i
+go s = runInteraction s X.interaction
 
 runInteraction :: String -> Interaction -> IO ()
 runInteraction = loop 0
   where
     loop :: Int -> String -> Interaction -> IO ()
     loop n inp = \case -- n counts the gets
-      IHalt _m@Machine{tick} -> do
+      IHalt m@X.State{tick} -> do
         when (inp/="") $ printf "Remaining input: '%s'\n" inp
         printf "#machine-ticks=%d\n" tick
-        tcMachine _m
+        tcMachine m
       IError s _m -> do
         printf "\n**Error: %s\n" s
-        --tcMachine _m
       IDebug m i -> do
         printf "%s\n" (show m)
         loop n inp i
