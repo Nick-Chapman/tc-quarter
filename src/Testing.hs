@@ -5,7 +5,8 @@ import Control.Monad (ap,liftM)
 import Data.List (isInfixOf)
 import Execution (Interaction(..))
 import Text.Printf (printf)
-import TypeChecking (Scheme,tcStart,runInfer,canonicalizeScheme,makeScheme)
+import Types (Scheme,makeScheme)
+import TypeChecking (tcStart,runInfer,canonicalizeScheme)
 import qualified Execution as X
 
 run :: Testing () -> IO ()

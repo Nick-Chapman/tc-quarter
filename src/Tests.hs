@@ -2,7 +2,18 @@
 module Tests (run) where
 
 import Testing (test,Testing,TestCase(..),Expect(..))
-import TypeChecking (Elem(..),Trans(..),makeScheme,Stack(..),Machine(..),SVar(..),EVar(..),Numeric(..),Contents(..))
+
+import Types
+  ( makeScheme
+  , Trans(..)
+  , Machine(..)
+  , Stack(..)
+  , Elem(..)
+  , Numeric(..)
+  , Contents(..)
+  , SVar(..)
+  , EVar(..))
+
 import qualified Testing (run)
 
 run :: IO ()
