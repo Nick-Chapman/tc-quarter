@@ -22,6 +22,7 @@ import Types
   , Contents(..)
   , SVar(..), svarsOfStack
   , EVar(..), evarsOfElem
+  , (~~>), (~), xt, num, addr, addr_char, mkSVar, mkEVar
   )
 
 import Execution
@@ -340,7 +341,6 @@ schemeOfPrim = \case
   _ -> Nothing
 
   where
-    -- TODO: move Language of types + these convenience constructors to sep file
     scheme = Just . makeScheme
 
     s1 = mkSVar 11
@@ -349,32 +349,8 @@ schemeOfPrim = \case
     s4 = mkSVar 44
     s5 = mkSVar 55
 
-    mkSVar = S_Var . SVar
-
     e1 = mkEVar 111
     e2 = mkEVar 222
-
-    mkEVar = E_Var . EVar
-
-(~~>) :: Stack -> Stack -> Trans
-(~~>) stack1 stack2 =
-  T_Trans (Machine stack1) (Machine stack2)
-
-(~) :: Stack -> Elem -> Stack
-(~) stack elem = S_Cons stack elem
-
-addr :: Elem -> Elem
-addr = E_Numeric . N_Address . C_Elem
-
-addr_char :: Elem
-addr_char = E_Numeric $ N_Address C_Char
-
-xt :: Trans -> Elem
-xt = E_XT
-
-num :: Elem
-num = E_Numeric N_Number
-
 
 tcPrim1 :: Prim -> Infer Trans
 tcPrim1 prim =

@@ -9,6 +9,8 @@ module Types
   , Contents(..)
   , SVar(..), svarsOfTrans, svarsOfStack
   , EVar(..), evarsOfTrans, evarsOfElem
+  -- convenience constructors
+  , (~~>), (~), xt, num, addr, addr_char, mkSVar, mkEVar -- TODO: loose "mk" prefix?
   ) where
 
 import Text.Printf (printf)
@@ -69,6 +71,33 @@ deriving instance Eq Stack
 deriving instance Eq Elem
 deriving instance Eq Numeric
 deriving instance Eq Contents
+
+----------------------------------------------------------------------
+-- constructors
+
+(~~>) :: Stack -> Stack -> Trans
+(~~>) stack1 stack2 = T_Trans (Machine stack1) (Machine stack2)
+
+(~) :: Stack -> Elem -> Stack
+(~) stack elem = S_Cons stack elem
+
+xt :: Trans -> Elem
+xt = E_XT
+
+num :: Elem
+num = E_Numeric N_Number
+
+addr :: Elem -> Elem
+addr = E_Numeric . N_Address . C_Elem
+
+addr_char :: Elem
+addr_char = E_Numeric $ N_Address C_Char
+
+mkSVar :: Int -> Stack
+mkSVar = S_Var . SVar
+
+mkEVar :: Int -> Elem
+mkEVar = E_Var . EVar
 
 ----------------------------------------------------------------------
 -- Show
