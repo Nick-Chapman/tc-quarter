@@ -7,17 +7,17 @@ import Prim (Prim(..))
 
 import Types
   ( Trans
-  , (~~>), (~), xt, num, addr, addr_char, mkSVar, mkEVar, skolem
+  , (~~>), (~), xt, num, addr, addr_char, mkSVar, mkEVar, mkNVar, skolem
   )
 
 typeOfPrim :: Prim -> Trans
 typeOfPrim = \case
-  Add -> (s ~ e1 ~ num) ~~> (s ~ e1) -- TODO: only allow numerics
-  Branch0 -> (s ~ num) ~~> s
+  Add -> (s ~ n1 ~ num) ~~> (s ~ n1)
+  Branch0 -> (s ~ e1) ~~> s
   CR -> (s ~~> s)
   C_Comma -> s ~ num ~~> s
   C_Fetch -> (s ~ addr_char) ~~> (s ~ num)
-  Comma -> s ~ num ~~> s -- TODO: overly specific; allow only numerics
+  Comma -> s ~ e1 ~~> s
   CompileComma -> (s ~ xt (s2 ~~> s3)) ~~> s
   CrashOnlyDuringStartup -> (s ~~> s)
   Dispatch -> (s ~ num) ~~> (s ~ xt (skolem "Sx" ~~> skolem "Sy"))
@@ -27,7 +27,7 @@ typeOfPrim = \case
   Equal -> (s ~ e1 ~ e1) ~~> (s ~ num)
   Execute -> (s ~ xt(s ~~> s2)) ~~> s2
   Fetch -> (s ~ addr e1) ~~> (s ~ e1)
-  HerePointer -> s ~~> (s ~ addr (addr e1))
+  HerePointer -> s ~~> (s ~ addr (addr e1)) -- TODO: c1
   IsHidden -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ num)
   IsImmediate -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ num)
   Jump -> (s ~ xt(s ~~> s2)) ~~> s2
@@ -35,15 +35,15 @@ typeOfPrim = \case
   Latest -> s ~~> (s ~ xt (skolem "Sx" ~~> skolem "Sy"))
   LessThan -> (s ~ e1 ~ e1) ~~> (s ~ num)
   Lit -> s ~~> (s ~ e1) -- TODO: e1 should be skolem
-  Minus -> (s ~ e1 ~ e1) ~~> (s ~ num) -- TODO: only allow numerics!
-  One -> s ~~> (s ~ num)
+  Minus -> (s ~ n1 ~ n1) ~~> (s ~ num)
+  One -> s ~~> (s ~ n1)
   Over -> (s ~ e1 ~ e2) ~~> (s ~ e1 ~ e2 ~ e1)
   RetComma -> (s ~~> s)
   Store -> (s ~ e1 ~ addr e1) ~~> s
   Swap -> (s ~ e1 ~ e2) ~~> (s ~ e2 ~ e1)
   XtToName -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ addr_char)
   XtToNext -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ xt (s4 ~~> s5)) -- TODO: skolem!
-  Zero -> s ~~> (s ~ num) -- TODO: more general
+  Zero -> s ~~> (s ~ e1) -- an XT can be zero :(
 
   Kdx_K -> undefined
   Kdx_D -> undefined
@@ -81,3 +81,4 @@ typeOfPrim = \case
     s5 = mkSVar 105
     e1 = mkEVar 106
     e2 = mkEVar 107
+    n1 = mkNVar 108

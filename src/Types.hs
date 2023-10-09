@@ -7,10 +7,11 @@ module Types
   , Elem(..)
   , Numeric(..)
   , Contents(..)
-  , SVar(..), svarsOfTrans, svarsOfStack
-  , EVar(..), evarsOfTrans, evarsOfElem
+  , SVar(..), svarsOfStack
+  , EVar(..), evarsOfElem
+  , NVar(..), nvarsOfNumeric
   -- convenience constructors
-  , (~~>), (~), xt, num, addr, addr_char, mkSVar, mkEVar -- TODO: loose "mk" prefix?
+  , (~~>), (~), xt, num, addr, addr_char, mkSVar, mkEVar, mkNVar -- TODO: loose "mk" prefix?
   , skolem
   ) where
 
@@ -19,10 +20,14 @@ import Data.List (nub)
 
 -- The polymorphic type scheme assigned to primitive and user defs
 data Scheme
-  = Scheme [SVar] [EVar] Trans
+  = Scheme [SVar] [EVar] [NVar] Trans
 
 makeScheme :: Trans -> Scheme
-makeScheme t = Scheme (nub (svarsOfTrans t)) (nub (evarsOfTrans t)) t
+makeScheme t = Scheme
+  (nub (svarsOfTrans t))
+  (nub (evarsOfTrans t))
+  (nub (nvarsOfTrans t))
+  t
 
 -- Type of a machine tranformation
 data Trans
@@ -52,7 +57,7 @@ data Elem
 data Numeric
   = N_Number
   | N_Address Contents
---  | TA_var Int -- (n1,n2,...)
+  | N_Var NVar -- (n1,n2,...)
 
 -- Type of the contents of an address
 data Contents
@@ -64,6 +69,9 @@ data SVar = SVar Int
   deriving (Eq,Ord)
 
 data EVar = EVar Int
+  deriving (Eq,Ord)
+
+data NVar = NVar Int
   deriving (Eq,Ord)
 
 deriving instance Eq Trans
@@ -100,6 +108,9 @@ mkSVar = S_Var . SVar
 mkEVar :: Int -> Elem
 mkEVar = E_Var . EVar
 
+mkNVar :: Int -> Elem
+mkNVar = E_Numeric . N_Var . NVar
+
 skolem :: String ->  Stack
 skolem = S_Skolem
 
@@ -108,8 +119,8 @@ skolem = S_Skolem
 
 instance Show Scheme where
   show = \case
-    Scheme svars evars trans -> do
-      let xs = map show svars ++ map show evars
+    Scheme svars evars nvars trans -> do
+      let xs = map show svars ++ map show evars ++ map show nvars
       printf "forall %s. %s" (unwords xs) (show trans)
 
 instance Show Trans where
@@ -137,6 +148,7 @@ instance Show Numeric where
   show = \case
     N_Number -> "Num"
     N_Address c -> printf "&%s" (show c)
+    N_Var v -> show v
 
 instance Show Contents where
   show = \case
@@ -149,7 +161,10 @@ instance Show SVar where
     SVar n -> printf "s%s" (show n)
 
 instance Show EVar where
-  show (EVar n) = printf "e%s" (show n)
+  show (EVar n) = printf "e%s" (show n) -- TODO: forth convention is x for any element
+
+instance Show NVar where
+  show (NVar n) = printf "n%s" (show n)
 
 ----------------------------------------------------------------------
 -- svarsOf*
@@ -178,6 +193,7 @@ svarsOfNumeric :: Numeric -> [SVar]
 svarsOfNumeric = \case
   N_Number -> []
   N_Address c -> svarsOfContents c
+  N_Var{} -> []
 
 svarsOfContents :: Contents -> [SVar]
 svarsOfContents = \case
@@ -211,8 +227,45 @@ evarsOfNumeric :: Numeric -> [EVar]
 evarsOfNumeric = \case
   N_Number -> []
   N_Address c -> evarsOfContents c
+  N_Var{} -> []
 
 evarsOfContents :: Contents -> [EVar]
 evarsOfContents = \case
   C_Char -> []
   C_Elem e -> evarsOfElem e
+
+----------------------------------------------------------------------
+-- nvarsOf*
+
+nvarsOfTrans :: Trans -> [NVar]
+nvarsOfTrans = \case
+  T_Trans m1 m2 -> nvarsOfMachine m1 ++ nvarsOfMachine m2
+
+nvarsOfMachine :: Machine -> [NVar]
+nvarsOfMachine = \case
+  Machine{stack} -> nvarsOfStack stack
+
+nvarsOfStack :: Stack -> [NVar]
+nvarsOfStack = \case
+  S_Cons s e -> nvarsOfStack s ++ nvarsOfElem e
+  S_Var{} -> []
+  S_Skolem{} -> []
+
+nvarsOfElem :: Elem -> [NVar]
+nvarsOfElem = \case
+  E_Numeric n -> nvarsOfNumeric n
+  E_XT t -> nvarsOfTrans t
+  E_Var{} -> []
+
+nvarsOfNumeric :: Numeric -> [NVar]
+nvarsOfNumeric = \case
+  N_Number -> []
+  N_Address c -> nvarsOfContents c
+  N_Var x -> [x] -- collect here
+
+nvarsOfContents :: Contents -> [NVar]
+nvarsOfContents = \case
+  C_Char -> []
+  C_Elem e -> nvarsOfElem e
+
+

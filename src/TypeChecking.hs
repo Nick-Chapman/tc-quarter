@@ -127,7 +127,7 @@ tcStart m@X.State{dispatchTable=dt,mem} c = do
     getAddrVar :: Numb -> Trans
     getAddrVar n =
        case Map.lookup n aVars of
-         Nothing -> error "lookup-aVars failed"
+         Nothing -> error (show ("lookup-aVars failed",n))
          Just tr -> tr
 
     loop :: Addr -> Infer Trans
@@ -181,11 +181,16 @@ tcStart m@X.State{dispatchTable=dt,mem} c = do
         AS{} -> nope
         AH{} -> nope
 
-        AN n -> do
+        AN _n -> do
           -- TODO: calling sub defs -- need to maintain somekind of type env
           -- currently we just get an unbound trans of from : s1 -- s2
-          let trans = getAddrVar n
-          pure (trans, [a])
+          --let trans = getAddrVar n
+          --pure (trans, [a])
+          --error (show ("tcCall/AN",n))
+          -- TODO: no constraints imposed here; get rubbish types!
+          s1 <- S_Var <$> FreshS
+          s2 <- S_Var <$> FreshS
+          pure (s1 ~~> s2, [])
 
         AP prim ->
           tcPrim a prim
@@ -224,8 +229,11 @@ tcStart m@X.State{dispatchTable=dt,mem} c = do
       AP prim -> do
         trans <- tcPrim1 prim
         pure (E_XT trans)
-      AN n -> do
-        pure (E_XT (getAddrVar n))
+      AN _n -> do
+        --error (show ("litAddr/AN",n))
+        --pure (E_XT (getAddrVar n))
+        -- TODO: no constraints imposed here; get rubbish types!
+        E_Var <$> FreshE
       a ->
         Nope (printf "litAddr: %s" (show a))
 

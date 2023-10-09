@@ -5,7 +5,7 @@ import Testing (test,Testing,TestCase(..),Expect(..))
 
 import Types
   ( makeScheme, Trans
-  , (~~>), (~), num, mkSVar, mkEVar, addr
+  , (~~>), (~), num, mkSVar, mkEVar, mkNVar, addr
   )
 
 import qualified Testing (run)
@@ -43,8 +43,10 @@ run = Testing.run $ do
   let
     s = mkSVar 101
     e = mkEVar 102
-    e1 = mkEVar 103
-    e2 = mkEVar 104
+    n = mkNVar 103
+    e1 = mkEVar 104
+    e2 = mkEVar 105
+    s1 = mkSVar 106
 
   yes "  ~?~>" $ (s ~ num) ~~> s
   yes "~^~?~>" $ s ~~> s
@@ -63,16 +65,19 @@ run = Testing.run $ do
   nox "~D~C~W~!" $ "Num ~ Char"
 
   nox "i ~1    t ~1" $ "stack cyclic"
-  yes "i ~1 ~, t ~1" $ (s ~ num) ~~> (s ~ num)
-  yes "i ~1 ~X t ~1" $ (s ~ num) ~~> (s ~ num)
+  yes "i ~1 ~, t ~1" $ (s ~ e) ~~> (s ~ n)
+  yes "i ~1 ~X t ~1" $ (s ~ e) ~~> (s ~ n)
   nox "i ~1 ~X t"    $ "stack cyclic"
-  yes "i    ~X t"    $ (s ~ num) ~~> s
+  yes "i    ~X t"    $ (s ~ e) ~~> s
 
-  yes "~1~X" $ s ~~> (s ~ num)
+  yes "~1~X" $ s ~~> (s ~ n)
 
   nox "~L  1, ~V" $ "Num ~ ("
-  yes "~L '1, ~V" $ s ~~> (s ~ num)
+  yes "~L '1, ~V" $ s ~~> (s ~ n)
   yes "~L 'D, ~V" $ (s ~ e) ~~> (s ~ e ~ e)
   yes "~L 'P, ~V" $ (s ~ e) ~~> s
-  yes "~L  1, ~+" $ (s ~ e) ~~> (s ~ e)
+  yes "~L  1, ~+" $ (s ~ n) ~~> (s ~ n)
   nox "~L '1, ~+" $ ") ~ Num"
+
+  yes "~0~V" $ s ~~> s1 -- sadly we allow 0 as an execution token
+  no "~1~+~V" -- but not the result of addition
