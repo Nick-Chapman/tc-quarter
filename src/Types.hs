@@ -11,6 +11,7 @@ module Types
   , EVar(..), evarsOfTrans, evarsOfElem
   -- convenience constructors
   , (~~>), (~), xt, num, addr, addr_char, mkSVar, mkEVar -- TODO: loose "mk" prefix?
+  , skolem
   ) where
 
 import Text.Printf (printf)
@@ -73,7 +74,7 @@ deriving instance Eq Numeric
 deriving instance Eq Contents
 
 ----------------------------------------------------------------------
--- constructors
+-- convenience constructors
 
 (~~>) :: Stack -> Stack -> Trans
 (~~>) stack1 stack2 = T_Trans (Machine stack1) (Machine stack2)
@@ -98,6 +99,9 @@ mkSVar = S_Var . SVar
 
 mkEVar :: Int -> Elem
 mkEVar = E_Var . EVar
+
+skolem :: String ->  Stack
+skolem = S_Skolem
 
 ----------------------------------------------------------------------
 -- Show
