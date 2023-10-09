@@ -15,7 +15,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Types
-  ( Scheme(..)
+  ( Scheme(..), makeScheme
   , Trans(..)
   , Machine(..)
   , Stack(..)
@@ -68,9 +68,10 @@ runInfer :: Infer Trans -> InfRes Trans
 runInfer inf0 = loop state0 inf0 k0
   where
     k0 :: Trans -> State -> InfRes Trans
-    k0 ty State{subst} = do
-      let ty' = subTrans subst ty
-      pure (Right ty')
+    k0 ty0 State{subst} = do
+      let ty1 = subTrans subst ty0
+      let ty2 = canonicalizeScheme (makeScheme ty1)
+      pure (Right ty2)
 
     loop :: State -> Infer a -> (a -> State -> InfRes b) -> InfRes b
     loop s inf k = case inf of

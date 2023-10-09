@@ -144,7 +144,9 @@ instance Show Contents where
     C_Elem e -> printf "%s" (show e)
 
 instance Show SVar where
-  show (SVar n) = printf "s%s" (show n) -- TODO: specal case 0
+  show = \case
+    SVar 0 -> "s" -- bit less noisy
+    SVar n -> printf "s%s" (show n)
 
 instance Show EVar where
   show (EVar n) = printf "e%s" (show n)
