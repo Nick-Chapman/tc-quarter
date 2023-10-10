@@ -95,13 +95,13 @@ unifyNumeric a1x a2x = do
   let cyclic = Nope (printf "numeric cyclic: %s ~ %s" (show a1) (show a2))
   case (a1,a2) of
 
-    (N_Var x1, num@(N_Var x2)) ->
+    (N_Var_DIE x1, num@(N_Var_DIE x2)) ->
       if x1==x2 then pure () else SubNumeric x1 num
 
-    (N_Var x, num) ->
+    (N_Var_DIE x, num) ->
       if x `elem` nvarsOfNumeric num then cyclic else SubNumeric x num
 
-    (num, N_Var x) ->
+    (num, N_Var_DIE x) ->
       if x `elem` nvarsOfNumeric num then cyclic else SubNumeric x num
 
     (N_Number, N_Number) -> pure ()

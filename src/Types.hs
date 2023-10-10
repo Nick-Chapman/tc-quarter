@@ -11,7 +11,7 @@ module Types
   , EVar(..), evarsOfElem
   , NVar(..), nvarsOfNumeric
   -- convenience constructors
-  , (~~>), (~), xt, num, addr, addr_char, mkSVar, mkEVar, mkNVar -- TODO: loose "mk" prefix?
+  , (~~>), (~), xt, num, addr, addr_char, mkSVar, mkEVar
   , skolem
   ) where
 
@@ -56,7 +56,7 @@ data Elem
 data Numeric -- TODO: die
   = N_Number
   | N_Address Contents
-  | N_Var NVar -- (n1,n2,...)
+  | N_Var_DIE NVar -- (n1,n2,...)
 
 -- Type of the contents of an address
 data Contents
@@ -108,8 +108,8 @@ mkSVar = S_Var . SVar
 mkEVar :: Int -> Elem
 mkEVar = E_Var . EVar
 
-mkNVar :: Int -> Elem
-mkNVar = E_Numeric . N_Var . NVar
+--mkNVar :: Int -> Elem
+--mkNVar = E_Numeric . N_Var_DIE . NVar
 
 skolem :: String ->  Stack
 skolem = S_Skolem
@@ -147,7 +147,7 @@ instance Show Numeric where
   show = \case
     N_Number -> "Num"
     N_Address c -> printf "&%s" (show c)
-    N_Var v -> show v
+    N_Var_DIE v -> show v
 
 instance Show Contents where
   show = \case
@@ -192,7 +192,7 @@ svarsOfNumeric :: Numeric -> [SVar]
 svarsOfNumeric = \case
   N_Number -> []
   N_Address c -> svarsOfContents c
-  N_Var{} -> []
+  N_Var_DIE{} -> []
 
 svarsOfContents :: Contents -> [SVar]
 svarsOfContents = \case
@@ -226,7 +226,7 @@ evarsOfNumeric :: Numeric -> [EVar]
 evarsOfNumeric = \case
   N_Number -> []
   N_Address c -> evarsOfContents c
-  N_Var{} -> []
+  N_Var_DIE{} -> []
 
 evarsOfContents :: Contents -> [EVar]
 evarsOfContents = \case
@@ -260,7 +260,7 @@ nvarsOfNumeric :: Numeric -> [NVar]
 nvarsOfNumeric = \case
   N_Number -> []
   N_Address c -> nvarsOfContents c
-  N_Var x -> [x] -- collect here
+  N_Var_DIE x -> [x] -- collect here
 
 nvarsOfContents :: Contents -> [NVar]
 nvarsOfContents = \case

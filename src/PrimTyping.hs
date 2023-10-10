@@ -7,12 +7,12 @@ import Prim (Prim(..))
 
 import Types
   ( Trans
-  , (~~>), (~), xt, num, addr, addr_char, mkSVar, mkEVar, mkNVar, skolem
+  , (~~>), (~), xt, num, addr, addr_char, mkSVar, mkEVar, skolem
   )
 
 typeOfPrim :: Prim -> Trans
 typeOfPrim = \case
-  Add -> (s ~ n1 ~ num) ~~> (s ~ n1)
+  Add -> (s ~ e1 ~ num) ~~> (s ~ e1)
   Branch0 -> (s ~ e1) ~~> s
   CR -> (s ~~> s)
   C_Comma -> s ~ num ~~> s
@@ -35,8 +35,8 @@ typeOfPrim = \case
   Latest -> s ~~> (s ~ xt (skolem "Sx" ~~> skolem "Sy"))
   LessThan -> (s ~ e1 ~ e1) ~~> (s ~ num)
   Lit -> s ~~> (s ~ e1) -- TODO: e1 should be skolem
-  Minus -> (s ~ n1 ~ n1) ~~> (s ~ num)
-  One -> s ~~> (s ~ n1)
+  Minus -> (s ~ e1 ~ e1) ~~> (s ~ num)
+  One -> s ~~> (s ~ num)
   Over -> (s ~ e1 ~ e2) ~~> (s ~ e1 ~ e2 ~ e1)
   RetComma -> (s ~~> s)
   Store -> (s ~ e1 ~ addr e1) ~~> s
@@ -81,4 +81,3 @@ typeOfPrim = \case
     s5 = mkSVar 105
     e1 = mkEVar 106
     e2 = mkEVar 107
-    n1 = mkNVar 108

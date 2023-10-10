@@ -32,7 +32,7 @@ instantiateScheme :: Scheme -> Infer Trans
 instantiateScheme (Scheme svars evars nvars ty) = do
   s <- Map.fromList <$> sequence [ do y <- FreshS; pure (x,S_Var y) | x <- svars ]
   e <- Map.fromList <$> sequence [ do y <- FreshE; pure (x,E_Var y) | x <- evars ]
-  n <- Map.fromList <$> sequence [ do y <- FreshN; pure (x,N_Var y) | x <- nvars ]
+  n <- Map.fromList <$> sequence [ do y <- FreshN; pure (x,N_Var_DIE y) | x <- nvars ]
   let sub = Subst { s, e, n }
   pure (subTrans sub ty)
 
@@ -42,7 +42,7 @@ canonicalizeScheme (Scheme svars evars nvars ty) = do
   let i = Map.size s
   let e = Map.fromList [ (x,E_Var (EVar n)) | (x,n) <- zip evars [i.. ] ]
   let j = Map.size s + Map.size e
-  let n = Map.fromList [ (x,N_Var (NVar n)) | (x,n) <- zip nvars [j.. ] ]
+  let n = Map.fromList [ (x,N_Var_DIE (NVar n)) | (x,n) <- zip nvars [j.. ] ]
   let sub = Subst { s, e, n }
   subTrans sub ty
 
@@ -160,7 +160,7 @@ subNumeric :: Subst -> Numeric -> Numeric
 subNumeric sub = \case
   N_Number -> N_Number
   N_Address c -> N_Address (subContents sub c)
-  numeric@(N_Var var) ->
+  numeric@(N_Var_DIE var) ->
     case applySubstN sub var of
       Nothing -> numeric
       Just replacement -> replacement
