@@ -71,7 +71,6 @@ unifyElem e1x e2x = do
   sub <- CurrentSub
   let e1 = subElem sub e1x
   let e2 = subElem sub e2x
-  let nope = Nope (printf "elem mismatch: %s ~ %s" (show e1) (show e2))
   let cyclic = Nope (printf "elem cyclic: %s ~ %s" (show e1) (show e2))
   case (e1, e2) of
 
@@ -85,10 +84,7 @@ unifyElem e1x e2x = do
       if x `elem` evarsOfElem el then cyclic else SubElem x el
 
     (E_Numeric n1, E_Numeric n2) -> unifyNumeric n1 n2
-    (E_XT t1, E_XT t2) -> unifyTrans t1 t2
 
-    (E_Numeric{},E_XT{}) -> nope
-    (E_XT{},E_Numeric{}) -> nope
 
 unifyNumeric :: Numeric -> Numeric -> Infer ()
 unifyNumeric a1x a2x = do
@@ -119,8 +115,11 @@ unifyContents c1 c2 =
   case (c1,c2) of
     (C_Char,C_Char) -> pure ()
     (C_Elem e1, C_Elem e2) -> unifyElem e1 e2
+    (C_Code t1, C_Code t2) -> unifyTrans t1 t2
 
-    (C_Char, C_Elem{}) -> nope
-    (C_Elem{}, C_Char) -> nope
+    (C_Char{}, _) -> nope
+    (_, C_Char{}) -> nope
+    (C_Elem{}, _) -> nope
+    (_, C_Elem{}) -> nope
   where
     nope = Nope (printf "unifyContents: %s ~ %s" (show c1) (show c2))

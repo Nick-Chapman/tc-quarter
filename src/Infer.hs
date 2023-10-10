@@ -151,7 +151,6 @@ subStack sub = loop
 subElem :: Subst -> Elem -> Elem
 subElem sub = \case
   E_Numeric n -> E_Numeric (subNumeric sub n)
-  E_XT t -> E_XT (subTrans sub t)
   elem@(E_Var var) ->
     case applySubstE sub var of
       Nothing -> elem
@@ -170,6 +169,7 @@ subContents :: Subst -> Contents -> Contents
 subContents sub = \case
   C_Char -> C_Char
   C_Elem e -> C_Elem (subElem sub e)
+  C_Code t -> C_Code (subTrans sub t)
 
 ----------------------------------------------------------------------
 -- Subst

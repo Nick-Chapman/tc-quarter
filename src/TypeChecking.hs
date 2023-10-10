@@ -25,7 +25,7 @@ import Types
   , Machine(..)
   , Stack(..)
   , Elem(..)
-  , (~~>), (~), num
+  , (~~>), (~), num, xt
   )
 
 import PrimTyping (typeOfPrim)
@@ -228,7 +228,7 @@ tcStart m@X.State{dispatchTable=dt,mem} c = do
     litAddr = \case
       AP prim -> do
         trans <- tcPrim1 prim
-        pure (E_XT trans)
+        pure (xt trans)
       AN _n -> do
         --error (show ("litAddr/AN",n))
         --pure (E_XT (getAddrVar n))

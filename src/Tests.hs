@@ -5,7 +5,7 @@ import Testing (test,Testing,TestCase(..),Expect(..))
 
 import Types
   ( makeScheme, Trans
-  , (~~>), (~), num, mkSVar, mkEVar, mkNVar, addr
+  , (~~>), (~), num, xt, mkSVar, mkEVar, mkNVar, addr
   )
 
 import qualified Testing (run)
@@ -72,12 +72,12 @@ run = Testing.run $ do
 
   yes "~1~X" $ s ~~> (s ~ n)
 
-  nox "~L  1, ~V" $ "Num ~ ("
+  nox "~L  1, ~V" $ "Num ~ &("
   yes "~L '1, ~V" $ s ~~> (s ~ n)
   yes "~L 'D, ~V" $ (s ~ e) ~~> (s ~ e ~ e)
   yes "~L 'P, ~V" $ (s ~ e) ~~> s
   yes "~L  1, ~+" $ (s ~ n) ~~> (s ~ n)
   nox "~L '1, ~+" $ ") ~ Num"
 
-  yes "~0~V" $ s ~~> s1 -- sadly we allow 0 as an execution token
-  no "~1~+~V" -- but not the result of addition
+  yes "~0~V" $ s ~~> s1
+  yes "~1~+~V" $ (s ~ xt(s ~~> s1)) ~~> s1

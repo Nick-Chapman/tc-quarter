@@ -20,7 +20,7 @@ _main = do
     [ "../quarter-forth/f/" ++ f
     | f <-
         [ "quarter.q"
-        , "forth.f"
+        -- , "forth.f"
         ]
     ]
   go inp
@@ -35,7 +35,7 @@ runInteraction = loop
     loop inp = \case
       IHalt _m@X.State{tick} -> do
         printf "#machine-ticks=%d\n" tick
-        --tcMachine _m
+        tcMachine _m
       IError s _m -> do
         printf "\n**Error: %s\n" s
       IDebug m i -> do

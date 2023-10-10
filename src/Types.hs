@@ -49,12 +49,11 @@ data Stack
 
 -- Type of a stack-element (fits in one cell)
 data Elem
-  = E_XT Trans
-  | E_Numeric Numeric
+  = E_Numeric Numeric
   | E_Var EVar -- (e1,e2,...)
 
 -- Type of an element that can be treated like a number
-data Numeric
+data Numeric -- TODO: die
   = N_Number
   | N_Address Contents
   | N_Var NVar -- (n1,n2,...)
@@ -63,6 +62,7 @@ data Numeric
 data Contents
   = C_Char
   | C_Elem Elem
+  | C_Code Trans
 --  | C_Var Int -- (c1,c2...)
 
 data SVar = SVar Int
@@ -91,7 +91,7 @@ deriving instance Eq Contents
 (~) stack elem = S_Cons stack elem
 
 xt :: Trans -> Elem
-xt = E_XT
+xt = E_Numeric . N_Address . C_Code
 
 num :: Elem
 num = E_Numeric N_Number
@@ -141,7 +141,6 @@ instance Show Stack where
 instance Show Elem where
   show = \case
     E_Numeric a -> show a
-    E_XT t -> show t -- printf "XT%s" (show e)
     E_Var v -> show v
 
 instance Show Numeric where
@@ -154,6 +153,7 @@ instance Show Contents where
   show = \case
     C_Char -> "Char"
     C_Elem e -> printf "%s" (show e)
+    C_Code t -> show t
 
 instance Show SVar where
   show = \case
@@ -186,7 +186,6 @@ svarsOfStack = \case
 svarsOfElem :: Elem -> [SVar]
 svarsOfElem = \case
   E_Numeric n -> svarsOfNumeric n
-  E_XT t -> svarsOfTrans t
   E_Var{} -> []
 
 svarsOfNumeric :: Numeric -> [SVar]
@@ -199,6 +198,7 @@ svarsOfContents :: Contents -> [SVar]
 svarsOfContents = \case
   C_Char -> []
   C_Elem e -> svarsOfElem e
+  C_Code t -> svarsOfTrans t
 
 ----------------------------------------------------------------------
 -- evarsOf*
@@ -220,7 +220,6 @@ evarsOfStack = \case
 evarsOfElem :: Elem -> [EVar]
 evarsOfElem = \case
   E_Numeric n -> evarsOfNumeric n
-  E_XT t -> evarsOfTrans t
   E_Var x -> [x] -- collect here
 
 evarsOfNumeric :: Numeric -> [EVar]
@@ -233,6 +232,7 @@ evarsOfContents :: Contents -> [EVar]
 evarsOfContents = \case
   C_Char -> []
   C_Elem e -> evarsOfElem e
+  C_Code t -> evarsOfTrans t
 
 ----------------------------------------------------------------------
 -- nvarsOf*
@@ -254,7 +254,6 @@ nvarsOfStack = \case
 nvarsOfElem :: Elem -> [NVar]
 nvarsOfElem = \case
   E_Numeric n -> nvarsOfNumeric n
-  E_XT t -> nvarsOfTrans t
   E_Var{} -> []
 
 nvarsOfNumeric :: Numeric -> [NVar]
@@ -267,5 +266,4 @@ nvarsOfContents :: Contents -> [NVar]
 nvarsOfContents = \case
   C_Char -> []
   C_Elem e -> nvarsOfElem e
-
-
+  C_Code t -> nvarsOfTrans t
