@@ -3,7 +3,7 @@ module Testing (test,run,Testing,TestCase(..),Expect(..)) where
 
 import Control.Monad (ap,liftM)
 import Data.List (isInfixOf)
-import Execution (Interaction(..))
+import Execution (Interaction(..),Loc(..))
 import Infer (runInfer,canonicalizeScheme)
 import Text.Printf (printf)
 import TypeChecking (tcStart)
@@ -88,3 +88,6 @@ runInteraction = loop
         case inp of
           [] -> loop inp (f Nothing)
           c:inp -> loop inp (f (Just c))
+      IWhere f -> do
+        let loc = Loc "" 1 0
+        loop inp (f loc)

@@ -1,8 +1,7 @@
 
 module Top (main) where
 
-import Control.Monad (when)
-import Execution (Interaction(..))
+import Execution (Interaction(..),Loc(..))
 import System.IO (hFlush, stdout)
 import Tests (run)
 import Text.Printf (printf)
@@ -17,54 +16,80 @@ main = do
 _main :: IO ()
 _main = do
   putStrLn "*tc-quarter*"
-  xs <- sequence
-    [ readFile ("../quarter-forth/f/" ++ f)
+  inp <- inputFiles
+    [ "../quarter-forth/f/" ++ f
     | f <-
         [ "quarter.q"
-        --, "forth.f"
-        --, "tools.f"
-        --, "regression.f"
-        --, "examples.f"
-        --, "primes.f"
-        --, "start.f"
+        , "forth.f"
         ]
     ]
-  go (concat (xs)) -- ++["umm\nz cr\n"]))
+  go inp
 
-go :: String -> IO ()
+go :: Input -> IO ()
 go s = runInteraction s X.interaction
 
-runInteraction :: String -> Interaction -> IO ()
-runInteraction = loop 0
+runInteraction :: Input -> Interaction -> IO ()
+runInteraction = loop
   where
-    loop :: Int -> String -> Interaction -> IO ()
-    loop n inp = \case -- n counts the gets
-      IHalt m@X.State{tick} -> do
-        when (inp/="") $ printf "Remaining input: '%s'\n" inp
+    loop :: Input -> Interaction -> IO ()
+    loop inp = \case
+      IHalt _m@X.State{tick} -> do
         printf "#machine-ticks=%d\n" tick
-        tcMachine m
+        --tcMachine _m
       IError s _m -> do
         printf "\n**Error: %s\n" s
       IDebug m i -> do
         printf "%s\n" (show m)
-        loop n inp i
+        loop inp i
       IDebugMem m i -> do
         tcMachine m
-        loop n inp i
+        loop inp i
       IMessage mes i -> do
         printf "**%s\n" mes
-        loop n inp i
+        loop inp i
       ICR i -> do
         putStrLn ""
-        loop n inp i
+        loop inp i
       IPut c i -> do
         putStr [c]; flush
-        loop n inp i
+        loop inp i
       IGet f -> do
-        case inp of
-          [] -> loop (n+1) inp (f Nothing)
-          c:inp -> do
-            --putStr [c] -- echo-on
-            loop (n+1) inp (f (Just c))
+        (m,inp') <- nextChar inp
+        loop inp' (f m)
+      IWhere f -> do
+        loop inp (f (location inp))
 
     flush = hFlush stdout
+
+data Input = Input
+  { file :: FilePath
+  , row :: Int
+  , col :: Int
+  , str :: String
+  , more :: [FilePath]
+  }
+
+inputFiles :: [FilePath] -> IO Input
+inputFiles = \case
+  [] -> error "inputFiles[]"
+  file:more -> do
+    --printf "**Reading file: %s\n" file
+    str <- readFile file
+    pure Input { file, row = 1, col = 0, str, more }
+
+nextChar :: Input -> IO (Maybe Char,Input)
+nextChar i@Input{str,row,col,more} =
+  case str of
+    x:xs -> if
+      | x =='\n' -> pure (Just x, i { str = xs, row = row + 1, col = 0 })
+      | otherwise -> pure (Just x, i { str = xs, col = col + 1 })
+    [] ->
+      case more of
+        [] -> pure (Nothing, i)
+        file:more -> do
+          --printf "**Reading file: %s\n" file
+          str <- readFile file
+          nextChar $ Input { file, row = 1, col = 0, str, more }
+
+location :: Input -> Loc
+location Input{file,row,col} = Loc {file,row,col}

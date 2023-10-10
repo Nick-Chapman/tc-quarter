@@ -1,6 +1,6 @@
 
 module Execution
-  ( interaction, Interaction(..), State(..)
+  ( interaction, Interaction(..), Loc(..), State(..)
   , Slot(..), Addr(..), Value(..), Numb, seeChar, offsetAddr, slotSize
   , numbOfValue
   ) where
@@ -125,6 +125,18 @@ data Interaction
   | IDebug State Interaction
   | IDebugMem State Interaction
   | IMessage String Interaction
+  | IWhere (Loc -> Interaction)
+
+data Loc = Loc
+  { file :: FilePath
+  , row :: Int
+  , col :: Int
+  }
+
+instance Show Loc where
+  show Loc{file,row,col} =
+    printf "%s%d.%d" (if file == "" then "" else printf "%s:" file) row col
+
 
 kernelEffect :: Eff ()
 kernelEffect = prim Kdx_K
@@ -132,7 +144,7 @@ kernelEffect = prim Kdx_K
 prim :: Prim -> Eff ()
 prim p = do
   --Debug
-  _i <- Tick
+  Tick
   --Message (printf " {%d} %s" _i (show p))
   prim1 p
   v <- RPop
@@ -160,6 +172,7 @@ prim1 = \case
     c <- Get
     a <- Here
     UpdateDT c a
+    --Message (show ("SetTabEntry",c,a))
   Execute -> do
     v <- Pop
     exec (addrOfValue v)
@@ -191,6 +204,9 @@ prim1 = \case
     a <- Here
     Allot (slotSize slot)
     UpdateMem a slot
+    --ticks <- Ticks
+    --loc <- Where
+    --Message (show ("RetComma",a,ticks,loc))
   Comma -> do
     v <- Pop
     let slot = SlotLit v
@@ -296,6 +312,7 @@ prim1 = \case
     UpdateMem a slot
     h <- Here
     SetLatest h -- we point to the XT, not the entry itself
+    --Message (show ("EntryComma",h))
   XtToNext -> do
     v1 <- Pop
     slot <- LookupMem (prevAddr (addrOfValue v1))
@@ -407,7 +424,8 @@ data Eff a where
   DebugMem :: Eff ()
   Message :: String -> Eff ()
   Abort :: String -> Eff ()
-  Tick :: Eff Int
+  Tick :: Eff ()
+  Ticks :: Eff Int
   Get :: Eff Char
   Put :: Char -> Eff ()
   E_CR :: Eff ()
@@ -425,6 +443,7 @@ data Eff a where
   HereAddr :: Eff Addr
   Here :: Eff Addr
   Allot :: Int -> Eff ()
+  Where :: Eff Loc
 
 runEff :: State -> Eff () -> Interaction
 runEff m e = loop m e k0
@@ -438,11 +457,15 @@ runEff m e = loop m e k0
       Bind e f -> loop m e $ \a m -> loop m (f a) k
       Debug -> do IDebug m $ k () m
       DebugMem -> do IDebugMem m $ k () m
+      Where -> do IWhere (\loc -> k loc m)
       Message s -> do IMessage s $ k () m
       Abort mes -> IError mes m
       Tick -> do
         let State{tick} = m
-        k tick m { tick = tick + 1 }
+        k () m { tick = tick + 1 }
+      Ticks -> do
+        let State{tick} = m
+        k tick m
       Get -> IGet (\case Just c -> k c m; Nothing -> k0 () m)
       Put c -> IPut c $ k () m
       E_CR -> ICR $ k () m
