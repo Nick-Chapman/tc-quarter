@@ -3,7 +3,7 @@ module Infer
   ( Infer(..), runInfer, TypeError
   , Subst
   , instantiateScheme, canonicalizeScheme
-  , subTrans, subStack, subElem, subNumeric
+  , subTrans, subStack, subElem, subNumeric, subContents
   )
   where
 
@@ -22,28 +22,28 @@ import Types
   , Contents(..)
   , SVar(..)
   , EVar(..)
-  , NVar(..)
+  , CVar(..)
   )
 
 ----------------------------------------------------------------------
 -- instantiateScheme, canonicalizeScheme
 
 instantiateScheme :: Scheme -> Infer Trans
-instantiateScheme (Scheme svars evars nvars ty) = do
+instantiateScheme (Scheme svars evars cvars ty) = do
   s <- Map.fromList <$> sequence [ do y <- FreshS; pure (x,S_Var y) | x <- svars ]
   e <- Map.fromList <$> sequence [ do y <- FreshE; pure (x,E_Var y) | x <- evars ]
-  n <- Map.fromList <$> sequence [ do y <- FreshN; pure (x,N_Var_DIE y) | x <- nvars ]
-  let sub = Subst { s, e, n }
+  c <- Map.fromList <$> sequence [ do y <- FreshC; pure (x,C_Var y) | x <- cvars ]
+  let sub = Subst { s, e, c = c }
   pure (subTrans sub ty)
 
 canonicalizeScheme :: Scheme -> Trans
-canonicalizeScheme (Scheme svars evars nvars ty) = do
+canonicalizeScheme (Scheme svars evars cvars ty) = do
   let s = Map.fromList [ (x,S_Var (SVar n)) | (x,n) <- zip svars [0.. ] ]
   let i = Map.size s
   let e = Map.fromList [ (x,E_Var (EVar n)) | (x,n) <- zip evars [i.. ] ]
   let j = Map.size s + Map.size e
-  let n = Map.fromList [ (x,N_Var_DIE (NVar n)) | (x,n) <- zip nvars [j.. ] ]
-  let sub = Subst { s, e, n }
+  let c = Map.fromList [ (x,C_Var (CVar n)) | (x,n) <- zip cvars [j.. ] ]
+  let sub = Subst { s, e, c }
   subTrans sub ty
 
 ----------------------------------------------------------------------
@@ -59,12 +59,12 @@ data Infer a where
   Message :: String -> Infer ()
   SubStack :: SVar -> Stack -> Infer ()
   SubElem :: EVar -> Elem -> Infer ()
-  SubNumeric :: NVar -> Numeric -> Infer ()
+  SubContents :: CVar -> Contents -> Infer ()
   Nope :: String -> Infer a
   CurrentSub :: Infer Subst
   FreshS :: Infer SVar
   FreshE :: Infer EVar
-  FreshN :: Infer NVar
+  FreshC :: Infer CVar
 
 type InfRes a = IO (Either TypeError a)
 
@@ -94,9 +94,9 @@ runInfer inf0 = loop state0 inf0 k0
         let State{subst} = s
         subst' <- extendSubstElem subst v elem
         k () s { subst = subst' }
-      SubNumeric v num -> do
+      SubContents v c -> do
         let State{subst} = s
-        subst' <- extendSubstNumeric subst v num
+        subst' <- extendSubstContents subst v c
         k () s { subst = subst' }
       Nope message -> do
         pure (Left (TypeError (printf "Nope: %s" message)))
@@ -111,9 +111,9 @@ runInfer inf0 = loop state0 inf0 k0
         let State{u} = s
         let x = EVar u
         k x s { u = u + 1 }
-      FreshN -> do
+      FreshC -> do
         let State{u} = s
-        let x = NVar u
+        let x = CVar u
         k x s { u = u + 1 }
 
 data State = State { subst :: Subst, u :: Int }
@@ -160,16 +160,16 @@ subNumeric :: Subst -> Numeric -> Numeric
 subNumeric sub = \case
   N_Number -> N_Number
   N_Address c -> N_Address (subContents sub c)
-  numeric@(N_Var_DIE var) ->
-    case applySubstN sub var of
-      Nothing -> numeric
-      Just replacement -> replacement
 
 subContents :: Subst -> Contents -> Contents
 subContents sub = \case
   C_Char -> C_Char
   C_Elem e -> C_Elem (subElem sub e)
   C_Code t -> C_Code (subTrans sub t)
+  c@(C_Var var) ->
+    case applySubstC sub var of
+      Nothing -> c
+      Just replacement -> replacement
 
 ----------------------------------------------------------------------
 -- Subst
@@ -177,7 +177,7 @@ subContents sub = \case
 data Subst = Subst
   { s :: Map SVar Stack
   , e :: Map EVar Elem
-  , n :: Map NVar Numeric
+  , c :: Map CVar Contents
   }
 
 applySubstS :: Subst -> SVar -> Maybe Stack
@@ -186,49 +186,50 @@ applySubstS Subst {s} x = Map.lookup x s
 applySubstE :: Subst -> EVar -> Maybe Elem
 applySubstE Subst {e} x = Map.lookup x e
 
-applySubstN :: Subst -> NVar -> Maybe Numeric
-applySubstN Subst {n} x = Map.lookup x n
+applySubstC :: Subst -> CVar -> Maybe Contents
+applySubstC Subst {c} x = Map.lookup x c
 
 instance Show Subst where
-  show Subst{s,e} =
+  show Subst{s,e,c} =
     unwords $
     [ printf "%s: %s," (show k) (show v) | (k,v) <- Map.toList s ] ++
-    [ printf "%s: %s," (show k) (show v) | (k,v) <- Map.toList e ]
+    [ printf "%s: %s," (show k) (show v) | (k,v) <- Map.toList e ] ++
+    [ printf "%s: %s," (show k) (show v) | (k,v) <- Map.toList c ]
 
 subst0 :: Subst
-subst0 = Subst { s = Map.empty, e = Map.empty, n = Map.empty }
+subst0 = Subst { s = Map.empty, e = Map.empty, c = Map.empty }
 
 extendSubstStack :: Subst -> SVar -> Stack -> IO Subst
-extendSubstStack Subst{s,e,n} key replacement = do
+extendSubstStack Subst{s,e,c} key replacement = do
   let sub1 = Subst { s = Map.singleton key replacement
                    , e = Map.empty
-                   , n = Map.empty
+                   , c = Map.empty
                    }
   pure $ Subst { s = Map.insert key replacement (Map.map (subStack sub1) s)
                , e = Map.map (subElem sub1) e
-               , n = Map.map (subNumeric sub1) n
+               , c = Map.map (subContents sub1) c
                }
 
 extendSubstElem :: Subst -> EVar -> Elem -> IO Subst
-extendSubstElem Subst{s,e,n} key replacement = do
+extendSubstElem Subst{s,e,c} key replacement = do
   let sub1 = Subst { e = Map.singleton key replacement
                    , s = Map.empty
-                   , n = Map.empty
+                   , c = Map.empty
                    }
   pure $ Subst { s = Map.map (subStack sub1) s
                , e = Map.insert key replacement (Map.map (subElem sub1) e)
-               , n = Map.map (subNumeric sub1) n
+               , c = Map.map (subContents sub1) c
                }
 
-extendSubstNumeric :: Subst -> NVar -> Numeric -> IO Subst
-extendSubstNumeric Subst{s,e,n} key replacement = do
+extendSubstContents :: Subst -> CVar -> Contents -> IO Subst
+extendSubstContents Subst{s,e,c} key replacement = do
   let sub1 = Subst { e = Map.empty
                    , s = Map.empty
-                   , n = Map.singleton key replacement
+                   , c = Map.singleton key replacement
                    }
   pure $ Subst { s = Map.map (subStack sub1) s
                , e = Map.map (subElem sub1) e
-               , n = Map.insert key replacement (Map.map (subNumeric sub1) n)
+               , c = Map.insert key replacement (Map.map (subContents sub1) c)
                }
 
 data TypeError = TypeError String -- TODO: needs fleshing out!

@@ -16,12 +16,12 @@ import Types
   , Contents(..)
   , svarsOfStack
   , evarsOfElem
-  , nvarsOfNumeric
+  , cvarsOfContents
   )
 
 import Infer
   ( Infer(..)
-  , subStack, subElem, subNumeric
+  , subStack, subElem, subNumeric, subContents
   )
 
 unifyTrans :: Trans -> Trans -> Infer ()
@@ -92,17 +92,7 @@ unifyNumeric a1x a2x = do
   let a1 = subNumeric sub a1x
   let a2 = subNumeric sub a2x
   let nope = Nope (printf "numeric: %s ~ %s" (show a1) (show a2))
-  let cyclic = Nope (printf "numeric cyclic: %s ~ %s" (show a1) (show a2))
   case (a1,a2) of
-
-    (N_Var_DIE x1, num@(N_Var_DIE x2)) ->
-      if x1==x2 then pure () else SubNumeric x1 num
-
-    (N_Var_DIE x, num) ->
-      if x `elem` nvarsOfNumeric num then cyclic else SubNumeric x num
-
-    (num, N_Var_DIE x) ->
-      if x `elem` nvarsOfNumeric num then cyclic else SubNumeric x num
 
     (N_Number, N_Number) -> pure ()
     (N_Address c1, N_Address c2) -> unifyContents c1 c2
@@ -111,8 +101,23 @@ unifyNumeric a1x a2x = do
     (N_Address{}, N_Number) -> nope
 
 unifyContents :: Contents -> Contents -> Infer ()
-unifyContents c1 c2 =
+unifyContents c1x c2x = do
+  sub <- CurrentSub
+  let c1 = subContents sub c1x
+  let c2 = subContents sub c2x
+  let nope = Nope (printf "contents: %s ~ %s" (show c1) (show c2))
+  let cyclic = Nope (printf "contents cyclic: %s ~ %s" (show c1) (show c2))
   case (c1,c2) of
+
+    (C_Var x1, c@(C_Var x2)) ->
+      if x1==x2 then pure () else SubContents x1 c
+
+    (C_Var x, c) ->
+      if x `elem` cvarsOfContents c then cyclic else SubContents x c
+
+    (c, C_Var x) ->
+      if x `elem` cvarsOfContents c then cyclic else SubContents x c
+
     (C_Char,C_Char) -> pure ()
     (C_Elem e1, C_Elem e2) -> unifyElem e1 e2
     (C_Code t1, C_Code t2) -> unifyTrans t1 t2
@@ -121,5 +126,3 @@ unifyContents c1 c2 =
     (_, C_Char{}) -> nope
     (C_Elem{}, _) -> nope
     (_, C_Elem{}) -> nope
-  where
-    nope = Nope (printf "unifyContents: %s ~ %s" (show c1) (show c2))
