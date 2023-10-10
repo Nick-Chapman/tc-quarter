@@ -42,40 +42,39 @@ run = Testing.run $ do
 
   let
     s = mkSVar 101
-    e = mkEVar 102
-    e1 = mkEVar 104
-    e2 = mkEVar 105
-    s1 = mkSVar 106
+    s1 = mkSVar 102
+    x1 = mkEVar 103
+    x2 = mkEVar 104
 
   yes "  ~?~>" $ (s ~ num) ~~> s
   yes "~^~?~>" $ s ~~> s
 
-  yes "~O~O" $ (s ~ e1 ~ e2) ~~> (s ~ e1 ~ e2 ~ e1 ~ e2)
+  yes "~O~O" $ (s ~ x1 ~ x2) ~~> (s ~ x1 ~ x2 ~ x1 ~ x2)
   no "~D~!"
 
-  yes "~H~@" $ s ~~> (s ~ addr e1)
-  yes "~H~@~@" $ s ~~> (s ~ e1)
+  yes "~H~@" $ s ~~> (s ~ addr x1)
+  yes "~H~@~@" $ s ~~> (s ~ x1)
   --yes "~H~@~C" $ s ~~> (s ~ num) -- TODO: should pass -- need content vars
 
-  yes "~L ^B?, ~>~H~@ 0# ~," $ s ~~> (s ~ addr e1) -- if: TODO: tighter, numeric
+  yes "~L ^B?, ~>~H~@ 0# ~," $ s ~~> (s ~ addr x1) -- if: TODO: tighter, numeric
   yes "~D~H~@~W~-~W~! " $ (s ~ addr num) ~~> s -- then
 
-  yes "~D~@~W~!" $ (s ~ addr e1) ~~> s
+  yes "~D~@~W~!" $ (s ~ addr x1) ~~> s
   nox "~D~C~W~!" $ "Num ~ Char"
 
   nox "i ~1    t ~1" $ "stack cyclic"
-  yes "i ~1 ~, t ~1" $ (s ~ e) ~~> (s ~ num)
-  yes "i ~1 ~X t ~1" $ (s ~ e) ~~> (s ~ num)
+  yes "i ~1 ~, t ~1" $ (s ~ x1) ~~> (s ~ num)
+  yes "i ~1 ~X t ~1" $ (s ~ x1) ~~> (s ~ num)
   nox "i ~1 ~X t"    $ "stack cyclic"
-  yes "i    ~X t"    $ (s ~ e) ~~> s
+  yes "i    ~X t"    $ (s ~ x1) ~~> s
 
   yes "~1~X" $ s ~~> (s ~ num)
 
   nox "~L  1, ~V" $ "Num ~ &("
   yes "~L '1, ~V" $ s ~~> (s ~ num)
-  yes "~L 'D, ~V" $ (s ~ e) ~~> (s ~ e ~ e)
-  yes "~L 'P, ~V" $ (s ~ e) ~~> s
-  yes "~L  1, ~+" $ (s ~ e) ~~> (s ~ e)
+  yes "~L 'D, ~V" $ (s ~ x1) ~~> (s ~ x1 ~ x1)
+  yes "~L 'P, ~V" $ (s ~ x1) ~~> s
+  yes "~L  1, ~+" $ (s ~ x1) ~~> (s ~ x1)
   nox "~L '1, ~+" $ ") ~ Num"
 
   yes "~0~V" $ s ~~> s1

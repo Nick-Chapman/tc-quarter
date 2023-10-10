@@ -12,38 +12,38 @@ import Types
 
 typeOfPrim :: Prim -> Trans
 typeOfPrim = \case
-  Add -> (s ~ e1 ~ num) ~~> (s ~ e1)
-  Branch0 -> (s ~ e1) ~~> s
+  Add -> (s ~ x1 ~ num) ~~> (s ~ x1)
+  Branch0 -> (s ~ x1) ~~> s
   CR -> (s ~~> s)
   C_Comma -> s ~ num ~~> s
   C_Fetch -> (s ~ addr_char) ~~> (s ~ num)
-  Comma -> s ~ e1 ~~> s
+  Comma -> s ~ x1 ~~> s
   CompileComma -> (s ~ xt (s2 ~~> s3)) ~~> s
   CrashOnlyDuringStartup -> (s ~~> s)
   Dispatch -> (s ~ num) ~~> (s ~ xt (skolem "Sx" ~~> skolem "Sy"))
-  Drop -> s ~ e1 ~~> s
-  Dup -> (s ~ e1) ~~> (s ~ e1 ~ e1)
+  Drop -> s ~ x1 ~~> s
+  Dup -> (s ~ x1) ~~> (s ~ x1 ~ x1)
   Emit -> s ~ num ~~> s
-  Equal -> (s ~ e1 ~ e1) ~~> (s ~ num)
+  Equal -> (s ~ x1 ~ x1) ~~> (s ~ num)
   Execute -> (s ~ xt(s ~~> s2)) ~~> s2
-  Fetch -> (s ~ addr e1) ~~> (s ~ e1)
-  HerePointer -> s ~~> (s ~ addr (addr e1)) -- TODO: c1
+  Fetch -> (s ~ addr x1) ~~> (s ~ x1)
+  HerePointer -> s ~~> (s ~ addr (addr x1)) -- TODO: c1
   IsHidden -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ num)
   IsImmediate -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ num)
   Jump -> (s ~ xt(s ~~> s2)) ~~> s2
   Key -> s ~~> (s ~ num)
   Latest -> s ~~> (s ~ xt (skolem "Sx" ~~> skolem "Sy"))
-  LessThan -> (s ~ e1 ~ e1) ~~> (s ~ num)
-  Lit -> s ~~> (s ~ e1) -- TODO: e1 should be skolem
-  Minus -> (s ~ e1 ~ e1) ~~> (s ~ num)
+  LessThan -> (s ~ x1 ~ x1) ~~> (s ~ num)
+  Lit -> s ~~> (s ~ x1) -- TODO: x1 should be skolem
+  Minus -> (s ~ x1 ~ x1) ~~> (s ~ num)
   One -> s ~~> (s ~ num)
-  Over -> (s ~ e1 ~ e2) ~~> (s ~ e1 ~ e2 ~ e1)
+  Over -> (s ~ x1 ~ x2) ~~> (s ~ x1 ~ x2 ~ x1)
   RetComma -> (s ~~> s)
-  Store -> (s ~ e1 ~ addr e1) ~~> s
-  Swap -> (s ~ e1 ~ e2) ~~> (s ~ e2 ~ e1)
+  Store -> (s ~ x1 ~ addr x1) ~~> s
+  Swap -> (s ~ x1 ~ x2) ~~> (s ~ x2 ~ x1)
   XtToName -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ addr_char)
   XtToNext -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ xt (s4 ~~> s5)) -- TODO: skolem!
-  Zero -> s ~~> (s ~ e1) -- an XT can be zero :(
+  Zero -> s ~~> (s ~ x1) -- an XT can be zero :(
 
   Kdx_K -> undefined
   Kdx_D -> undefined
@@ -79,5 +79,5 @@ typeOfPrim = \case
     s3 = mkSVar 103
     s4 = mkSVar 104
     s5 = mkSVar 105
-    e1 = mkEVar 106
-    e2 = mkEVar 107
+    x1 = mkEVar 106
+    x2 = mkEVar 107

@@ -150,7 +150,7 @@ instance Show SVar where
     SVar n -> printf "s%s" (show n)
 
 instance Show EVar where
-  show (EVar n) = printf "e%s" (show n) -- TODO: forth convention is x for any element
+  show (EVar n) = printf "x%s" (show n)
 
 instance Show CVar where
   show (CVar n) = printf "c%s" (show n)
