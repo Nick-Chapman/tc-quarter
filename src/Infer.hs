@@ -1,6 +1,6 @@
 
 module Infer
-  ( Infer(..), runInfer, TypeError
+  ( Infer(..), runInfer, InfRes, TypeError(..)
   , Subst
   , instantiateScheme, canonicalizeScheme
   , subTrans, subStack, subElem, subContents
@@ -13,7 +13,7 @@ import Text.Printf (printf)
 import qualified Data.Map as Map
 
 import Types
-  ( Scheme(..), makeScheme
+  ( Scheme(..)
   , Trans(..)
   , Machine(..)
   , Stack(..)
@@ -67,14 +67,12 @@ data Infer a where
 
 type InfRes a = IO (Either TypeError a)
 
-runInfer :: Infer Trans -> InfRes Trans
-runInfer inf0 = loop state0 inf0 k0
+runInfer :: Int -> Infer a -> InfRes (Int,Subst,a) -- TODO: be more principled!
+runInfer u0 inf0 = loop (state0 u0) inf0 k0
   where
-    k0 :: Trans -> State -> InfRes Trans
-    k0 ty0 State{subst} = do
-      let ty1 = subTrans subst ty0
-      let ty2 = canonicalizeScheme (makeScheme ty1)
-      pure (Right ty2)
+    k0 :: a -> State -> InfRes (Int,Subst,a)
+    k0 a State{subst,u} = do
+      pure (Right (u,subst,a))
 
     loop :: State -> Infer a -> (a -> State -> InfRes b) -> InfRes b
     loop s inf k = case inf of
@@ -117,8 +115,8 @@ runInfer inf0 = loop state0 inf0 k0
 
 data State = State { subst :: Subst, u :: Int }
 
-state0 :: State
-state0 = State { subst = subst0, u = 0 }
+state0 :: Int -> State
+state0 u = State { subst = subst0, u }
 
 ----------------------------------------------------------------------
 -- sub*

@@ -1,11 +1,11 @@
 
 module Top (main) where
 
-import Execution (Interaction(..),Loc(..))
+import Execution (Interaction(..),Loc(..),Def(..))
 import System.IO (hFlush, stdout)
 import Tests (run)
 import Text.Printf (printf)
-import TypeChecking (tcMachine)
+import TypeChecking (tc,Tenv,tenv0,lookupTenv)
 import qualified Execution as X (interaction,State(..))
 
 main :: IO ()
@@ -20,7 +20,10 @@ _main = do
     [ "../quarter-forth/f/" ++ f
     | f <-
         [ "quarter.q"
-        -- , "forth.f"
+        , "forth.f"
+        --, "tools.f"
+        --, "examples.f"
+        --, "start.f"
         ]
     ]
   go inp
@@ -29,37 +32,58 @@ go :: Input -> IO ()
 go s = runInteraction s X.interaction
 
 runInteraction :: Input -> Interaction -> IO ()
-runInteraction = loop
+runInteraction = loop tenv0
   where
-    loop :: Input -> Interaction -> IO ()
-    loop inp = \case
+    loop :: Tenv -> Input -> Interaction -> IO ()
+    loop tenv inp = \case
       IHalt _m@X.State{tick} -> do
         printf "#machine-ticks=%d\n" tick
-        tcMachine _m
+        --tcMachine _m
       IError s _m -> do
         printf "\n**Error: %s\n" s
       IDebug m i -> do
         printf "%s\n" (show m)
-        loop inp i
-      IDebugMem m i -> do
-        tcMachine m
-        loop inp i
+        loop tenv inp i
+      IDebugMem _m i -> do
+        --tcMachine _m
+        loop tenv inp i
       IMessage mes i -> do
         printf "**%s\n" mes
-        loop inp i
+        loop tenv inp i
       ICR i -> do
         putStrLn ""
-        loop inp i
+        loop tenv inp i
       IPut c i -> do
         putStr [c]; flush
-        loop inp i
+        loop tenv inp i
       IGet f -> do
         (m,inp') <- nextChar inp
-        loop inp' (f m)
+        loop tenv inp' (f m)
       IWhere f -> do
-        loop inp (f (location inp))
+        loop tenv inp (f (location inp))
+      ITC m a defs i -> do
+        e <- TypeChecking.tc m tenv a
+        case e of
+          Left s -> do
+            error (printf "Type checking failed: %s\n" (show s))
+            --loop tenv inp i
+
+          Right (tenv,__subst) -> do
+            sequence_ [ report tenv def | def <- defs ]
+            loop tenv inp i
 
     flush = hFlush stdout
+
+
+report :: Tenv -> Def -> IO ()
+report tenv = \case
+  Def_Dispatch c a -> do
+    let ts = lookupTenv a tenv
+    printf "?%c :: %s\n" c (show ts)
+  Def_Dictionary name a -> do
+    let ts = lookupTenv a tenv
+    printf "%s :: %s\n" name (show ts)
+
 
 data Input = Input
   { file :: FilePath

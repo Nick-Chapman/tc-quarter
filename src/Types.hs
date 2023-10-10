@@ -28,7 +28,7 @@ makeScheme t = Scheme
   (nub (cvarsOfTrans t))
   t
 
--- Type of a machine tranformation
+-- Type of a machine tranformation -- TODO: Consider renaming this as Type
 data Trans
   = T_Trans Machine Machine
 

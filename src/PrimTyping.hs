@@ -20,19 +20,24 @@ typeOfPrim = \case
   Comma -> s ~ x1 ~~> s
   CompileComma -> (s ~ xt (s2 ~~> s3)) ~~> s
   CrashOnlyDuringStartup -> (s ~~> s)
-  Dispatch -> (s ~ num) ~~> (s ~ xt (skolem "Sx" ~~> skolem "Sy"))
+  --Dispatch -> (s ~ num) ~~> (s ~ xt (skolem "Sx" ~~> skolem "Sy"))
+  Dispatch -> (s ~ num) ~~> (s ~ xt (s2 ~~> s3)) -- TODO: magical thinking
   Drop -> s ~ x1 ~~> s
   Dup -> (s ~ x1) ~~> (s ~ x1 ~ x1)
   Emit -> s ~ num ~~> s
   Equal -> (s ~ x1 ~ x1) ~~> (s ~ num)
+
   Execute -> (s ~ xt(s ~~> s2)) ~~> s2
+  --Execute -> (s ~ xt(s ~~> s2)) ~~> s3 -- TODO: magic
+
   Fetch -> (s ~ addr_cell x1) ~~> (s ~ x1)
   HerePointer -> s ~~> (s ~ addr_cell (addr c1))
   IsHidden -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ num)
   IsImmediate -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ num)
   Jump -> (s ~ xt(s ~~> s2)) ~~> s2
   Key -> s ~~> (s ~ num)
-  Latest -> s ~~> (s ~ xt (skolem "Sx" ~~> skolem "Sy"))
+  --Latest -> s ~~> (s ~ xt (skolem "Sx" ~~> skolem "Sy"))
+  Latest -> s ~~> (s ~ xt (s2 ~~> s3))
   LessThan -> (s ~ x1 ~ x1) ~~> (s ~ num)
   Lit -> s ~~> (s ~ x1) -- TODO: x1 should be skolem
   Minus -> (s ~ x1 ~ x1) ~~> (s ~ num)
@@ -45,24 +50,40 @@ typeOfPrim = \case
   XtToNext -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ xt (s4 ~~> s5)) -- TODO: skolem!
   Zero -> s ~~> (s ~ x1) -- an XT can be zero :(
 
+  EntryComma -> do
+    (s ~ addr char) ~~> s -- TODO ??
+
   Kdx_K -> undefined
   Kdx_D -> undefined
   Kdx_X -> undefined
   SetTabEntry -> undefined
   Nop -> undefined
-  Branch -> undefined
-  Exit -> undefined
-  Mul -> undefined
-  Xor -> undefined
-  EntryComma  -> undefined
-  Crash  -> undefined
-  FlipImmediate -> undefined
-  FlipHidden -> undefined
-  FromReturnStack -> undefined
-  ToReturnStack -> undefined
-  DivMod -> undefined
-  KeyNonBlocking -> undefined
-  C_Store -> undefined
+
+  Branch -> s ~~> s
+
+  Exit -> undefined -- TODO here also?
+  Mul -> (s ~ num ~ num) ~~> (s ~ num)
+  Xor -> (s ~ num ~ num) ~~> (s ~ num)
+
+  Crash -> s ~~> s2 -- TODO: magic, ok
+
+  FlipImmediate ->
+    (s ~ xt (s2 ~~> s3)) ~~> s
+
+  FlipHidden ->
+    (s ~ xt (s2 ~~> s3)) ~~> s
+
+  -- TODO: Cant type return stack ops properly... (yet!)
+  FromReturnStack -> s ~~> (s ~ x1)
+  ToReturnStack -> (s ~ x1) ~~> s
+
+  DivMod ->
+    (s ~ num ~ num) ~~> (s ~ num ~ num)
+
+  KeyNonBlocking -> s ~~> (s ~ num)
+
+  C_Store -> (s ~ num ~ addr char) ~~> s
+
   BitShiftRight -> undefined
   Sp -> undefined
   Sp0 -> undefined
@@ -74,6 +95,7 @@ typeOfPrim = \case
   EchoOn -> undefined
 
   where
+    _x = skolem
     s = mkSVar 101
     s2 = mkSVar 102
     s3 = mkSVar 103

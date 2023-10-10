@@ -1,6 +1,6 @@
 
 module Execution
-  ( interaction, Interaction(..), Loc(..), State(..)
+  ( interaction, Interaction(..), Loc(..), State(..), Def(..)
   , Slot(..), Addr(..), Value(..), Numb, seeChar, offsetAddr, slotSize
   , numbOfValue
   ) where
@@ -126,6 +126,11 @@ data Interaction
   | IDebugMem State Interaction
   | IMessage String Interaction
   | IWhere (Loc -> Interaction)
+  | ITC State Addr [Def] Interaction -- check types up to Addr, and then report entries
+
+data Def
+  = Def_Dispatch Char Addr
+  | Def_Dictionary String Addr
 
 data Loc = Loc
   { file :: FilePath
@@ -207,6 +212,8 @@ prim1 = \case
     --ticks <- Ticks
     --loc <- Where
     --Message (show ("RetComma",a,ticks,loc))
+    aHigh <- Here
+    TypeCheck aHigh
   Comma -> do
     v <- Pop
     let slot = SlotLit v
@@ -312,7 +319,6 @@ prim1 = \case
     UpdateMem a slot
     h <- Here
     SetLatest h -- we point to the XT, not the entry itself
-    --Message (show ("EntryComma",h))
   XtToNext -> do
     v1 <- Pop
     slot <- LookupMem (prevAddr (addrOfValue v1))
@@ -444,6 +450,7 @@ data Eff a where
   Here :: Eff Addr
   Allot :: Int -> Eff ()
   Where :: Eff Loc
+  TypeCheck :: Addr -> Eff ()
 
 runEff :: State -> Eff () -> Interaction
 runEff m e = loop m e k0
@@ -457,7 +464,6 @@ runEff m e = loop m e k0
       Bind e f -> loop m e $ \a m -> loop m (f a) k
       Debug -> do IDebug m $ k () m
       DebugMem -> do IDebugMem m $ k () m
-      Where -> do IWhere (\loc -> k loc m)
       Message s -> do IMessage s $ k () m
       Abort mes -> IError mes m
       Tick -> do
@@ -475,8 +481,10 @@ runEff m e = loop m e k0
           Nothing -> IError (show ("lookupDT",c)) m
           Just a -> k a m
       UpdateDT c a -> do
-        let State{dispatchTable=dt} = m
-        k () m { dispatchTable = Map.insert c a dt }
+        let State{dispatchTable=dt,toReport} = m
+        k () m { dispatchTable = Map.insert c a dt
+               , toReport = toReport ++ [Def_Dispatch c a]
+               }
       LookupMem (AS s) -> k (SlotString s) m -- super duper special case
       UpdateMem (a@AS{}) _ -> IError (show ("UpdateMem",a)) m
       LookupMem a -> do
@@ -515,7 +523,10 @@ runEff m e = loop m e k0
         let State{latest} = m
         k latest m
       SetLatest latest -> do
-        k () m { latest }
+        let State{toReport} = m
+        let name = entryName m latest
+        k () m { latest
+               , toReport = toReport ++ [Def_Dictionary name latest] }
       HereAddr -> do
         k addrOfHere m
       Here -> do
@@ -531,6 +542,31 @@ runEff m e = loop m e k0
         let a' = offsetAddr n a
         let slot' = SlotLit (valueOfAddr a')
         k () m { mem = Map.insert addrOfHere slot' mem }
+      Where -> do
+        IWhere (\loc -> k loc m)
+      TypeCheck _a -> do
+        let State{toReport=_defs} = m
+        ITC m _a _defs $ k () m { toReport = [] }
+        --k () m
+
+
+entryName :: State -> Addr -> String
+entryName State{mem} aXT = do
+  let
+    look :: Addr -> Slot
+    look a = maybe undefined id (Map.lookup a mem)
+  let Entry{name=aName} = entryOfSlot (look (prevAddr aXT))
+  let
+    nameAt :: Addr -> String
+    nameAt a = do
+      let slot = maybe err id $ Map.lookup a mem
+            where err = error "nameAt"
+      case slot of
+        SlotChar '\0' -> []
+        SlotChar c -> c : nameAt (offsetAddr 1 a)
+        _ -> error (show ("nameAt",slot))
+  nameAt aName
+
 
 -- Stae of the execution machine
 data State = State
@@ -541,6 +577,7 @@ data State = State
   , mem :: Map Addr Slot
   , tick :: Int
   , latest :: Addr
+  , toReport :: [Def]
   }
 
 instance Show State where
@@ -559,6 +596,7 @@ machine0 = State
   , mem = mem0
   , tick = 0
   , latest = AP $ snd (head kernelDictionary)
+  , toReport = []
   }
 
 type Mem = Map Addr Slot
@@ -610,7 +648,7 @@ data Value = VC Char | VN Numb | VA Addr deriving (Eq)
 
 type Numb = Word16
 
-data Addr = AN Numb | AP Prim | APE Prim | AS String | AH -- | AHplus1
+data Addr = AN Numb | AP Prim | APE Prim | AS String | AH
   deriving (Eq,Ord)
 
 instance Show Slot where
@@ -645,7 +683,6 @@ instance Show Addr where
     APE p -> printf "Entry:%s" (show p)
     AS s -> printf "%s" (show s)
     AH -> printf "here"
-    -- AHplus1 -> printf "(&here+1)"
 
 prevAddr :: Addr -> Addr -- used only to skip back over entry slots
 prevAddr = \case
@@ -656,7 +693,6 @@ prevAddr = \case
 offsetAddr :: Int -> Addr -> Addr
 offsetAddr n a = case a of
   AN i -> AN (fromIntegral n + i)
-  -- AH -> AHplus1
   a -> error (show ("offsetAddr",a))
 
 valueOfSlot :: Slot -> Value

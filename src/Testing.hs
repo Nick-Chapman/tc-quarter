@@ -4,10 +4,10 @@ module Testing (test,run,Testing,TestCase(..),Expect(..)) where
 import Control.Monad (ap,liftM)
 import Data.List (isInfixOf)
 import Execution (Interaction(..),Loc(..))
-import Infer (runInfer,canonicalizeScheme)
+import Infer (Infer,runInfer,InfRes,canonicalizeScheme,subTrans)
 import Text.Printf (printf)
 import TypeChecking (tcStart)
-import Types (Scheme,makeScheme)
+import Types (Scheme,Trans,makeScheme)
 import qualified Execution as X (interaction,State)
 
 run :: Testing () -> IO ()
@@ -51,7 +51,7 @@ runTest n (Test (TestCase{setup,code}) x) = do
       printf "(%d) %s (execution failed)\nerr: %s\n" n code err
       pure False
     Right m -> do
-      e <- runInfer (tcStart m 'z')
+      e <- runInferTrans (tcStart m 'z')
       case (x,e) of
         (ExpectError{frag}, Left err) -> do
           if frag `isInfixOf` (show err) then pure True else do
@@ -72,6 +72,17 @@ runTest n (Test (TestCase{setup,code}) x) = do
             printf "got: %s\n" (show got)
             pure False
 
+
+runInferTrans :: Infer Trans -> InfRes Trans
+runInferTrans i = do
+  let u0 = 0
+  runInfer u0 i >>= \case
+    Left err -> pure $ Left err
+    Right (_u,subst,ty0) -> do
+      let ty1 = subTrans subst ty0
+      let ty2 = canonicalizeScheme (makeScheme ty1)
+      pure (Right ty2)
+
 runInteraction :: String -> Interaction -> IO (Either String X.State)
 runInteraction = loop
   where
@@ -91,3 +102,5 @@ runInteraction = loop
       IWhere f -> do
         let loc = Loc "" 1 0
         loop inp (f loc)
+      ITC _ _ _ i ->
+        loop inp i
