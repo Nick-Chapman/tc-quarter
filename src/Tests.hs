@@ -5,7 +5,7 @@ import Testing (test,Testing,TestCase(..),Expect(..))
 
 import Types
   ( makeScheme, Trans
-  , (~~>), (~), num, xt, mkSVar, mkEVar, addr
+  , (~~>), (~), num, xt, mkSVar, mkEVar, mkCVar, addr, addr_cell
   )
 
 import qualified Testing (run)
@@ -45,6 +45,7 @@ run = Testing.run $ do
     s1 = mkSVar 102
     x1 = mkEVar 103
     x2 = mkEVar 104
+    c1 = mkCVar 105
 
   yes "  ~?~>" $ (s ~ num) ~~> s
   yes "~^~?~>" $ s ~~> s
@@ -52,14 +53,14 @@ run = Testing.run $ do
   yes "~O~O" $ (s ~ x1 ~ x2) ~~> (s ~ x1 ~ x2 ~ x1 ~ x2)
   no "~D~!"
 
-  yes "~H~@" $ s ~~> (s ~ addr x1)
+  yes "~H~@" $ s ~~> (s ~ addr c1)
   yes "~H~@~@" $ s ~~> (s ~ x1)
-  --yes "~H~@~C" $ s ~~> (s ~ num) -- TODO: should pass -- need content vars
+  yes "~H~@~C" $ s ~~> (s ~ num)
 
-  yes "~L ^B?, ~>~H~@ 0# ~," $ s ~~> (s ~ addr x1) -- if: TODO: tighter, numeric
-  yes "~D~H~@~W~-~W~! " $ (s ~ addr num) ~~> s -- then
+  yes "~L ^B?, ~>~H~@ 0# ~," $ s ~~> (s ~ addr c1) -- if
+  yes "~D~H~@~W~-~W~! " $ (s ~ addr_cell num) ~~> s -- then
 
-  yes "~D~@~W~!" $ (s ~ addr x1) ~~> s
+  yes "~D~@~W~!" $ (s ~ addr_cell x1) ~~> s
   nox "~D~C~W~!" $ "Num ~ Char"
 
   nox "i ~1    t ~1" $ "stack cyclic"

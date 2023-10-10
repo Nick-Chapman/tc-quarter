@@ -7,7 +7,7 @@ import Prim (Prim(..))
 
 import Types
   ( Trans
-  , (~~>), (~), xt, num, addr, addr_char, mkSVar, mkEVar, skolem
+  , (~~>), (~), xt, num, addr, addr_cell, char, mkSVar, mkEVar, mkCVar, skolem
   )
 
 typeOfPrim :: Prim -> Trans
@@ -16,7 +16,7 @@ typeOfPrim = \case
   Branch0 -> (s ~ x1) ~~> s
   CR -> (s ~~> s)
   C_Comma -> s ~ num ~~> s
-  C_Fetch -> (s ~ addr_char) ~~> (s ~ num)
+  C_Fetch -> (s ~ addr char) ~~> (s ~ num)
   Comma -> s ~ x1 ~~> s
   CompileComma -> (s ~ xt (s2 ~~> s3)) ~~> s
   CrashOnlyDuringStartup -> (s ~~> s)
@@ -26,8 +26,8 @@ typeOfPrim = \case
   Emit -> s ~ num ~~> s
   Equal -> (s ~ x1 ~ x1) ~~> (s ~ num)
   Execute -> (s ~ xt(s ~~> s2)) ~~> s2
-  Fetch -> (s ~ addr x1) ~~> (s ~ x1)
-  HerePointer -> s ~~> (s ~ addr (addr x1)) -- TODO: c1
+  Fetch -> (s ~ addr_cell x1) ~~> (s ~ x1)
+  HerePointer -> s ~~> (s ~ addr_cell (addr c1))
   IsHidden -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ num)
   IsImmediate -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ num)
   Jump -> (s ~ xt(s ~~> s2)) ~~> s2
@@ -39,9 +39,9 @@ typeOfPrim = \case
   One -> s ~~> (s ~ num)
   Over -> (s ~ x1 ~ x2) ~~> (s ~ x1 ~ x2 ~ x1)
   RetComma -> (s ~~> s)
-  Store -> (s ~ x1 ~ addr x1) ~~> s
+  Store -> (s ~ x1 ~ addr_cell x1) ~~> s
   Swap -> (s ~ x1 ~ x2) ~~> (s ~ x2 ~ x1)
-  XtToName -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ addr_char)
+  XtToName -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ addr char)
   XtToNext -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ xt (s4 ~~> s5)) -- TODO: skolem!
   Zero -> s ~~> (s ~ x1) -- an XT can be zero :(
 
@@ -81,3 +81,4 @@ typeOfPrim = \case
     s5 = mkSVar 105
     x1 = mkEVar 106
     x2 = mkEVar 107
+    c1 = mkCVar 108

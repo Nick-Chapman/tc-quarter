@@ -10,7 +10,7 @@ module Types
   , EVar(..), evarsOfElem
   , CVar(..), cvarsOfContents
   -- convenience constructors
-  , (~~>), (~), xt, num, addr, addr_char, mkSVar, mkEVar
+  , (~~>), (~), xt, num, addr, addr_cell, char, mkSVar, mkEVar, mkCVar
   , skolem
   ) where
 
@@ -89,11 +89,14 @@ xt = E_Address . C_Code
 num :: Elem
 num = E_Number
 
-addr :: Elem -> Elem
-addr = E_Address . C_Elem
+addr :: Contents -> Elem
+addr = E_Address
 
-addr_char :: Elem
-addr_char = E_Address C_Char
+addr_cell :: Elem -> Elem
+addr_cell = E_Address . C_Elem
+
+char :: Contents
+char = C_Char
 
 mkSVar :: Int -> Stack
 mkSVar = S_Var . SVar
@@ -101,8 +104,8 @@ mkSVar = S_Var . SVar
 mkEVar :: Int -> Elem
 mkEVar = E_Var . EVar
 
---mkCVar :: Int -> Elem
---mkCVar = E_Numeric . C_Var . CVar
+mkCVar :: Int -> Contents
+mkCVar = C_Var . CVar
 
 skolem :: String ->  Stack
 skolem = S_Skolem
