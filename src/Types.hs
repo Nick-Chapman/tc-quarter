@@ -5,7 +5,6 @@ module Types
   , Machine(..)
   , Stack(..)
   , Elem(..)
-  , Numeric(..)
   , Contents(..)
   , SVar(..), svarsOfStack
   , EVar(..), evarsOfElem
@@ -49,13 +48,9 @@ data Stack
 
 -- Type of a stack-element (fits in one cell)
 data Elem
-  = E_Numeric Numeric
+  = E_Number
+  | E_Address Contents
   | E_Var EVar -- (e1,e2,...)
-
--- Type of an element that can be treated like a number
-data Numeric -- TODO: die
-  = N_Number
-  | N_Address Contents
 
 -- Type of the contents of an address
 data Contents
@@ -77,7 +72,6 @@ deriving instance Eq Trans
 deriving instance Eq Machine
 deriving instance Eq Stack
 deriving instance Eq Elem
-deriving instance Eq Numeric
 deriving instance Eq Contents
 
 ----------------------------------------------------------------------
@@ -90,16 +84,16 @@ deriving instance Eq Contents
 (~) stack elem = S_Cons stack elem
 
 xt :: Trans -> Elem
-xt = E_Numeric . N_Address . C_Code
+xt = E_Address . C_Code
 
 num :: Elem
-num = E_Numeric N_Number
+num = E_Number
 
 addr :: Elem -> Elem
-addr = E_Numeric . N_Address . C_Elem
+addr = E_Address . C_Elem
 
 addr_char :: Elem
-addr_char = E_Numeric $ N_Address C_Char
+addr_char = E_Address C_Char
 
 mkSVar :: Int -> Stack
 mkSVar = S_Var . SVar
@@ -139,13 +133,9 @@ instance Show Stack where
 
 instance Show Elem where
   show = \case
-    E_Numeric a -> show a
+    E_Number -> "Num"
+    E_Address c -> printf "&%s" (show c)
     E_Var v -> show v
-
-instance Show Numeric where
-  show = \case
-    N_Number -> "Num"
-    N_Address c -> printf "&%s" (show c)
 
 instance Show Contents where
   show = \case
@@ -184,13 +174,9 @@ svarsOfStack = \case
 
 svarsOfElem :: Elem -> [SVar]
 svarsOfElem = \case
-  E_Numeric n -> svarsOfNumeric n
+  E_Number -> []
+  E_Address c -> svarsOfContents c
   E_Var{} -> []
-
-svarsOfNumeric :: Numeric -> [SVar]
-svarsOfNumeric = \case
-  N_Number -> []
-  N_Address c -> svarsOfContents c
 
 svarsOfContents :: Contents -> [SVar]
 svarsOfContents = \case
@@ -218,13 +204,9 @@ evarsOfStack = \case
 
 evarsOfElem :: Elem -> [EVar]
 evarsOfElem = \case
-  E_Numeric n -> evarsOfNumeric n
+  E_Number -> []
+  E_Address c -> evarsOfContents c
   E_Var x -> [x] -- collect here
-
-evarsOfNumeric :: Numeric -> [EVar]
-evarsOfNumeric = \case
-  N_Number -> []
-  N_Address c -> evarsOfContents c
 
 evarsOfContents :: Contents -> [EVar]
 evarsOfContents = \case
@@ -252,13 +234,9 @@ cvarsOfStack = \case
 
 cvarsOfElem :: Elem -> [CVar]
 cvarsOfElem = \case
-  E_Numeric n -> cvarsOfNumeric n
+  E_Number -> []
+  E_Address c -> cvarsOfContents c
   E_Var{} -> []
-
-cvarsOfNumeric :: Numeric -> [CVar]
-cvarsOfNumeric = \case
-  N_Number -> []
-  N_Address c -> cvarsOfContents c
 
 cvarsOfContents :: Contents -> [CVar]
 cvarsOfContents = \case

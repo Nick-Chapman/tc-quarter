@@ -3,7 +3,7 @@ module Infer
   ( Infer(..), runInfer, TypeError
   , Subst
   , instantiateScheme, canonicalizeScheme
-  , subTrans, subStack, subElem, subNumeric, subContents
+  , subTrans, subStack, subElem, subContents
   )
   where
 
@@ -18,7 +18,6 @@ import Types
   , Machine(..)
   , Stack(..)
   , Elem(..)
-  , Numeric(..)
   , Contents(..)
   , SVar(..)
   , EVar(..)
@@ -150,16 +149,12 @@ subStack sub = loop
 
 subElem :: Subst -> Elem -> Elem
 subElem sub = \case
-  E_Numeric n -> E_Numeric (subNumeric sub n)
+  E_Number -> E_Number
+  E_Address c -> E_Address (subContents sub c)
   elem@(E_Var var) ->
     case applySubstE sub var of
       Nothing -> elem
       Just replacement -> replacement
-
-subNumeric :: Subst -> Numeric -> Numeric
-subNumeric sub = \case
-  N_Number -> N_Number
-  N_Address c -> N_Address (subContents sub c)
 
 subContents :: Subst -> Contents -> Contents
 subContents sub = \case
