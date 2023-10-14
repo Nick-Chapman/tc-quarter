@@ -4,10 +4,10 @@ module Testing (test,run,Testing,TestCase(..),Expect(..)) where
 import Control.Monad (ap,liftM)
 import Data.List (isInfixOf)
 import Execution (Interaction(..),Loc(..))
-import Infer (Infer,runInfer,InfRes,canonicalizeScheme,subTrans)
+import Infer (runInfer,canonicalizeScheme,subTrans)
 import Text.Printf (printf)
 import TypeChecking (tcStart)
-import Types (Scheme,Trans,makeScheme)
+import Types (Scheme,makeScheme)
 import qualified Execution as X (interaction,State)
 
 run :: Testing () -> IO ()
@@ -51,8 +51,18 @@ runTest n (Test (TestCase{setup,code}) x) = do
       printf "(%d) %s (execution failed)\nerr: %s\n" n code err
       pure False
     Right m -> do
-      e <- runInferTrans (tcStart m 'z')
-      case (x,e) of
+      let u0 = 0
+      (errs,res) <- runInfer u0 (tcStart m 'z')
+      let (_u,subst,ty0) = res
+      let
+        actual =
+          case errs of
+            err:_ -> Left err
+            [] -> do
+              let ty1 = subTrans subst ty0
+              Right (canonicalizeScheme (makeScheme ty1))
+
+      case (x,actual) of
         (ExpectError{frag}, Left err) -> do
           if frag `isInfixOf` (show err) then pure True else do
             printf "(%d) %s (missing frag %s in error)\ngot: %s\n" n code (show frag) (show err)
@@ -72,16 +82,6 @@ runTest n (Test (TestCase{setup,code}) x) = do
             printf "got: %s\n" (show got)
             pure False
 
-
-runInferTrans :: Infer Trans -> InfRes Trans
-runInferTrans i = do
-  let u0 = 0
-  runInfer u0 i >>= \case
-    Left err -> pure $ Left err
-    Right (_u,subst,ty0) -> do
-      let ty1 = subTrans subst ty0
-      let ty2 = canonicalizeScheme (makeScheme ty1)
-      pure (Right ty2)
 
 runInteraction :: String -> Interaction -> IO (Either String X.State)
 runInteraction = loop

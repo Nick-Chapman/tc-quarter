@@ -1,7 +1,7 @@
 
 module TypeChecking
   ( tcStart -- used in Testing types of dispatch tabel entries
-  , tc, Tenv, tenv0, lookupTenv, Subst, subTS
+  , tc, Tenv(..), tenv0, lookupTenv, Subst, subTS
   ) where
 
 import Data.Map (Map)
@@ -34,7 +34,6 @@ import Infer
   ( Infer(..)
   , runInfer
   , instantiateScheme, canonicalizeScheme
-  , TypeError(..)
   , Subst, subTrans, subElem
   )
 
@@ -46,16 +45,17 @@ import Unify
 tcStart :: X.State -> Char -> Infer Trans
 tcStart xstate@X.State{dispatchTable=dt} c = do
   case Map.lookup c dt of
-    Nothing ->
-      Nope (printf "no dispatch table entry for %s" (seeChar c))
+    Nothing -> do
+      error (printf "no dispatch table entry for %s" (seeChar c))
     Just a -> do
       (ts,_) <- tcAddr xstate tenv0 a
       case ts of
         TS_Trans ty -> pure ty
-        _ -> Nope "dispatch table entry defined as non code"
+        _ -> do
+          error "dispatch table entry defined as non code"
 
-tc :: X.State -> Tenv -> Addr -> IO (Either TypeError (Tenv,Subst))
-tc xstate te@Tenv{u,last} high = do
+tc :: X.State -> Tenv -> Addr -> IO (Tenv,Subst)
+tc xstate te@Tenv{u,last,nErrs} high = do
   --printf "**tc: %s -- %s\n" (show last) (show high)
   let
     X.State{mem} = xstate
@@ -71,28 +71,21 @@ tc xstate te@Tenv{u,last} high = do
         let a' = offsetAddr (slotSize slot) a
         (a,slot) : collectSlots a'
   let _slots = collectSlots last
-
   --print ("tc:",_slots)
-
-  -- TODO: runInfer -- need to thread fresh-var unique counter through
-  -- successive calls
-  -- Perhaps I can store the fresh number in the Tenv
-
-  runInfer u (tcRange xstate te last high) >>= \case
-
-    Left err -> pure (Left err)
-    Right (u,subst,te1) -> do
-      let te2 = subTenv subst te1 -- TODO: maybe I can avoid this
-      -- IF we generalize before we put in the Tenv
-      -- and then freshen on every lookup
-      -- would that work?
-
+  (errs,res) <- runInfer u (tcRange xstate te last high)
+  sequence_ [ printf "**ERROR: %s" (show e) | e <- errs ]
+  case res of
+    (u,subst,te1) -> do
+      let te2 = subTenv subst te1 -- TODO: can we avoid this?
       -- print (te2) -- TODO: see the growing tenv
-      if
---        | high > AN 2000 -> pure $ Left (TypeError "give up")
-        | otherwise -> do
-            pure $ Right (te2 { last = high, u }, subst)
-
+      pure
+        ( te2
+          { last = high
+          , u
+          , nErrs = length errs + nErrs
+          }
+        , subst
+        )
 
 data TS -- Type of a slot
   = TS_Trans Trans
@@ -118,6 +111,7 @@ data Tenv = Tenv
   { u :: Int -- Hack for threading fres var counter
   , last :: Addr
   , m :: Map Addr TS -- TODO: Trans --> new type Slot
+  , nErrs :: Int
   }
 
 instance Show Tenv where
@@ -128,7 +122,7 @@ instance Show Tenv where
       ]
 
 tenv0 :: Tenv
-tenv0 = Tenv { last = AN 0, m = Map.empty, u = 0 }
+tenv0 = Tenv { last = AN 0, m = Map.empty, u = 0, nErrs = 0 }
 
 subTenv :: Subst -> Tenv -> Tenv -- TODO: must we do this??
 subTenv sub te@Tenv{m} =
@@ -201,8 +195,8 @@ tcSlot xstate te a0 slot = do
             TS_Trans trans2 -> do
               trans <- composeTrans trans1 trans2
               pure (TS_Trans trans,te2)
-            _ ->
-              Nope (printf "fallthrough to non-code at address: %s" (show a2))
+            _ -> do
+              error (printf "fallthrough to non-code at address: %s" (show a2))
         Next2 a2 a3 -> do
           (ts2,te2) <- tcAddr xstate te1 a2
           (ts3,te3) <- tcAddr xstate te2 a3
@@ -212,10 +206,10 @@ tcSlot xstate te a0 slot = do
               unifyTrans trans2 trans3
               trans <- composeTrans trans1 trans2
               pure (TS_Trans trans,te3)
-            (TS_Trans{},_) ->
-              Nope (printf "branch to non-code at address: %s" (show a3))
-            (_,_) ->
-              Nope (printf "fallthrough to non-code at address: %s" (show a2))
+            (TS_Trans{},_) -> do
+              error (printf "branch to non-code at address: %s" (show a3))
+            (_,_) -> do
+              error (printf "fallthrough to non-code at address: %s" (show a2))
 
 data Next = Next0 | Next1 Addr | Next2 Addr Addr
 
@@ -237,13 +231,13 @@ litAddr _xstate _te = \case -- TODO: dont need these args
 
   a -> do
     let _ = (num,xt)
-    Nope (printf "litAddr: %s" (show a))
+    error (printf "litAddr: %s" (show a))
 
 
 
 tcCall :: X.State -> Tenv -> Addr -> Addr -> Infer (Trans,Next,Tenv)
 tcCall xstate te a1 codeAddr = do
-  let nope = Nope (printf "tcCall: %s" (show codeAddr))
+  let nope = error (printf "tcCall: %s" (show codeAddr))
   case codeAddr of
     APE{} -> nope
     AS{} -> nope
@@ -257,7 +251,7 @@ tcCall xstate te a1 codeAddr = do
 
           pure (trans, Next1 a1, te)
         _ -> do
-          Nope (printf "calling non-code at address: %s" (show codeAddr))
+          error (printf "calling non-code at address: %s" (show codeAddr))
 
 
     AP prim ->
@@ -274,7 +268,7 @@ tcPrim xstate te a1 = \case
         let trans = stack ~~> (stack ~ elem)
         pure (trans, Next1 (nextSlotAddr xstate a1), te1)
       _ ->
-        Nope (printf "unexpected non-literal-cell at address: %s" (show a1))
+        error (printf "unexpected non-literal-cell at address: %s" (show a1))
 
   Branch0 -> do
     trans <- tcPrim1 Branch0

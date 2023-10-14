@@ -1,6 +1,8 @@
 
 module Infer
-  ( Infer(..), runInfer, InfRes, TypeError(..)
+  ( Infer(..)
+  , runInfer
+  , TypeError(..)
   , Subst
   , instantiateScheme, canonicalizeScheme
   , subTrans, subStack, subElem, subContents
@@ -59,20 +61,20 @@ data Infer a where
   SubStack :: SVar -> Stack -> Infer ()
   SubElem :: EVar -> Elem -> Infer ()
   SubContents :: CVar -> Contents -> Infer ()
-  Nope :: String -> Infer a
+  Nope :: String -> Infer ()
   CurrentSub :: Infer Subst
   FreshS :: Infer SVar
   FreshE :: Infer EVar
   FreshC :: Infer CVar
 
-type InfRes a = IO (Either TypeError a)
+type InfRes a = IO ([TypeError],a)
 
 runInfer :: Int -> Infer a -> InfRes (Int,Subst,a) -- TODO: be more principled!
 runInfer u0 inf0 = loop (state0 u0) inf0 k0
   where
     k0 :: a -> State -> InfRes (Int,Subst,a)
-    k0 a State{subst,u} = do
-      pure (Right (u,subst,a))
+    k0 a State{subst,u,errs} = do
+      pure (reverse errs,(u,subst,a))
 
     loop :: State -> Infer a -> (a -> State -> InfRes b) -> InfRes b
     loop s inf k = case inf of
@@ -96,7 +98,9 @@ runInfer u0 inf0 = loop (state0 u0) inf0 k0
         subst' <- extendSubstContents subst v c
         k () s { subst = subst' }
       Nope message -> do
-        pure (Left (TypeError (printf "Nope: %s" message)))
+        let err = TypeError (printf "Nope: %s" message)
+        let State{errs} = s
+        k () s { errs = err : errs }
       CurrentSub -> do
         let State{subst} = s
         k subst s
@@ -113,10 +117,10 @@ runInfer u0 inf0 = loop (state0 u0) inf0 k0
         let x = CVar u
         k x s { u = u + 1 }
 
-data State = State { subst :: Subst, u :: Int }
+data State = State { subst :: Subst, u :: Int, errs :: [TypeError] }
 
 state0 :: Int -> State
-state0 u = State { subst = subst0, u }
+state0 u = State { subst = subst0, u, errs = [] }
 
 ----------------------------------------------------------------------
 -- sub*

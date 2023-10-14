@@ -5,7 +5,7 @@ import Execution (Interaction(..),Loc(..),Def(..))
 import System.IO (hFlush, stdout)
 import Tests (run)
 import Text.Printf (printf)
-import TypeChecking (tc,Tenv,tenv0,lookupTenv)
+import TypeChecking (tc,Tenv(..),tenv0,lookupTenv)
 import qualified Execution as X (interaction,State(..))
 
 main :: IO ()
@@ -38,14 +38,14 @@ runInteraction = loop tenv0
     loop tenv inp = \case
       IHalt _m@X.State{tick} -> do
         printf "#machine-ticks=%d\n" tick
-        --tcMachine _m
+        let Tenv{nErrs} = tenv
+        printf "#errors=%d\n" nErrs
       IError s _m -> do
         printf "\n**Error: %s\n" s
       IDebug m i -> do
         printf "%s\n" (show m)
         loop tenv inp i
       IDebugMem _m i -> do
-        --tcMachine _m
         loop tenv inp i
       IMessage mes i -> do
         printf "**%s\n" mes
@@ -64,11 +64,7 @@ runInteraction = loop tenv0
       ITC m a defs i -> do
         e <- TypeChecking.tc m tenv a
         case e of
-          Left s -> do
-            error (printf "Type checking failed: %s\n" (show s))
-            --loop tenv inp i
-
-          Right (tenv,__subst) -> do
+          (tenv,__subst) -> do
             sequence_ [ report tenv def | def <- defs ]
             loop tenv inp i
 
