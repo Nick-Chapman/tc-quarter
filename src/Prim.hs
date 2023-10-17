@@ -36,4 +36,5 @@ data Prim
   | Time
   | StartupIsComplete
   | EchoOn
+  | EchoEnabled
   deriving (Eq,Ord,Show,Enum,Bounded)

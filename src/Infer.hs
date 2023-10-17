@@ -26,6 +26,8 @@ import Types
   , CVar(..)
   )
 
+import Execution (Loc)
+
 ----------------------------------------------------------------------
 -- instantiateScheme, canonicalizeScheme
 
@@ -69,8 +71,8 @@ data Infer a where
 
 type InfRes a = IO ([TypeError],a)
 
-runInfer :: Int -> Infer a -> InfRes (Int,Subst,a) -- TODO: be more principled!
-runInfer u0 inf0 = loop (state0 u0) inf0 k0
+runInfer :: Loc -> Int -> Infer a -> InfRes (Int,Subst,a) -- TODO: be more principled!
+runInfer loc u0 inf0 = loop (state0 u0) inf0 k0
   where
     k0 :: a -> State -> InfRes (Int,Subst,a)
     k0 a State{subst,u,errs} = do
@@ -97,8 +99,8 @@ runInfer u0 inf0 = loop (state0 u0) inf0 k0
         let State{subst} = s
         subst' <- extendSubstContents subst v c
         k () s { subst = subst' }
-      Nope message -> do
-        let err = TypeError (printf "Nope: %s" message)
+      Nope mes -> do
+        let err = TypeError loc mes
         let State{errs} = s
         k () s { errs = err : errs }
       CurrentSub -> do
@@ -229,6 +231,8 @@ extendSubstContents Subst{s,e,c} key replacement = do
                , c = Map.insert key replacement (Map.map (subContents sub1) c)
                }
 
-data TypeError = TypeError String -- TODO: needs fleshing out!
+data TypeError = TypeError Loc String -- TODO: needs fleshing out!
 
-deriving instance Show TypeError
+instance Show TypeError where
+  show (TypeError loc mes) =
+    printf "%s : %s" (show loc) mes

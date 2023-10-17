@@ -84,15 +84,16 @@ typeOfPrim = \case
 
   C_Store -> (s ~ num ~ addr char) ~~> s
 
-  BitShiftRight -> undefined
-  Sp -> undefined
-  Sp0 -> undefined
-  ReturnStackPointer -> undefined
-  ReturnStackPointerBase -> undefined
+  BitShiftRight -> (s ~ num) ~~> (s ~ num)
+  Sp -> s ~~> (s ~ addr_cell num)
+  Sp0 -> s ~~> (s ~ addr_cell num)
+  ReturnStackPointer -> s ~~> (s ~ addr_cell x1)
+  ReturnStackPointerBase -> s ~~> (s ~ addr_cell x1)
   GetKey -> undefined
-  Time -> undefined
+  Time ->  s ~~> (s ~ num ~ num)
   StartupIsComplete -> undefined
-  EchoOn -> undefined
+  EchoOn -> s ~~> s
+  EchoEnabled -> s ~~> (s ~ num)
 
   where
     _x = skolem

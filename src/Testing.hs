@@ -51,8 +51,9 @@ runTest n (Test (TestCase{setup,code}) x) = do
       printf "(%d) %s (execution failed)\nerr: %s\n" n code err
       pure False
     Right m -> do
+      let loc = Loc "test" n 0
       let u0 = 0
-      (errs,res) <- runInfer u0 (tcStart m 'z')
+      (errs,res) <- runInfer loc u0 (tcStart m 'z')
       let (_u,subst,ty0) = res
       let
         actual =

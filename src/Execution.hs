@@ -114,6 +114,7 @@ kernelDictionary =
   , ("time", Time)
   , ("startup-is-complete", StartupIsComplete)
   , ("echo-on", EchoOn)
+  , ("echo-enabled", EchoEnabled)
   ]
 
 data Interaction
@@ -204,13 +205,15 @@ prim1 = \case
     a <- Here
     Allot (slotSize slot)
     UpdateMem a slot
+    LocateMem a
   RetComma -> do
     let slot = SlotRet
     a <- Here
     Allot (slotSize slot)
     UpdateMem a slot
+    LocateMem a
     --ticks <- Ticks
-    --loc <- Where
+    --loc <- Locate
     --Message (show ("RetComma",a,ticks,loc))
     aHigh <- Here
     TypeCheck aHigh
@@ -220,12 +223,14 @@ prim1 = \case
     a <- Here
     Allot (slotSize slot)
     UpdateMem a slot
+    LocateMem a
   C_Comma -> do
     v <- Pop
     let slot = SlotChar (charOfValue v)
     a <- Here
     Allot (slotSize slot)
     UpdateMem a slot
+    LocateMem a
   Lit -> do
     a <- addrOfValue <$> RPop
     slot <- LookupMem a
@@ -317,6 +322,7 @@ prim1 = \case
     a <- Here
     Allot (slotSize slot)
     UpdateMem a slot
+    LocateMem a
     h <- Here
     SetLatest h -- we point to the XT, not the entry itself
   XtToNext -> do
@@ -388,12 +394,15 @@ prim1 = \case
   GetKey -> do
     Push (valueOfAddr (AP Key))
   Time -> do
-    Push (valueOfNumb 123) -- TODO
-    Push (valueOfNumb 456) -- TODO
+    Push (valueOfNumb 123)
+    Push (valueOfNumb 456)
   StartupIsComplete -> do
-    pure () -- TODO
+    pure ()
   EchoOn -> do
-    pure () -- TODO
+    pure ()
+  EchoEnabled -> do
+    Push (valueOfBool False)
+    pure ()
 
 
 paramStackBase :: Addr
@@ -449,7 +458,8 @@ data Eff a where
   HereAddr :: Eff Addr
   Here :: Eff Addr
   Allot :: Int -> Eff ()
-  Where :: Eff Loc
+  Locate :: Eff Loc
+  LocateMem :: Addr -> Eff ()
   TypeCheck :: Addr -> Eff ()
 
 runEff :: State -> Eff () -> Interaction
@@ -542,8 +552,13 @@ runEff m e = loop m e k0
         let a' = offsetAddr n a
         let slot' = SlotLit (valueOfAddr a')
         k () m { mem = Map.insert addrOfHere slot' mem }
-      Where -> do
-        IWhere (\loc -> k loc m)
+      Locate -> do
+        IWhere $ \loc -> do
+          k loc m
+      LocateMem a -> do
+        IWhere $ \loc -> do
+          let State{locs} = m
+          k () m { locs = Map.insert a loc locs }
       TypeCheck _a -> do
         let State{toReport=_defs} = m
         ITC m _a _defs $ k () m { toReport = [] }
@@ -575,6 +590,7 @@ data State = State
   , rstack :: [Value]
   , dispatchTable :: Map Char Addr
   , mem :: Map Addr Slot
+  , locs :: Map Addr Loc -- location of user code which wrote memory
   , tick :: Int
   , latest :: Addr
   , toReport :: [Def]
@@ -594,6 +610,7 @@ machine0 = State
       Map.fromList [ (c,AP p)
                    | (c,p) <- quarterDispatch ]
   , mem = mem0
+  , locs = Map.empty
   , tick = 0
   , latest = AP $ snd (head kernelDictionary)
   , toReport = []

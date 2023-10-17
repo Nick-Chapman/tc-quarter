@@ -4,6 +4,7 @@ module TypeChecking
   , tc, Tenv(..), tenv0, lookupTenv, Subst, subTS
   ) where
 
+import Control.Monad (when)
 import Data.Map (Map)
 import Prim (Prim(..))
 import Text.Printf (printf)
@@ -42,6 +43,8 @@ import Unify
   , unifyMachine
   )
 
+import Execution (Loc(..))
+
 tcStart :: X.State -> Char -> Infer Trans
 tcStart xstate@X.State{dispatchTable=dt} c = do
   case Map.lookup c dt of
@@ -53,6 +56,7 @@ tcStart xstate@X.State{dispatchTable=dt} c = do
         TS_Trans ty -> pure ty
         _ -> do
           error "dispatch table entry defined as non code"
+
 
 tc :: X.State -> Tenv -> Addr -> IO (Tenv,Subst)
 tc xstate te@Tenv{u,last,nErrs} high = do
@@ -71,9 +75,22 @@ tc xstate te@Tenv{u,last,nErrs} high = do
         let a' = offsetAddr (slotSize slot) a
         (a,slot) : collectSlots a'
   let _slots = collectSlots last
+
+  let
+    X.State{locs} = xstate
+    locate :: Addr -> Loc
+    locate a = maybe noloc id (Map.lookup a locs)
+      where noloc = Loc "" 1 0
+
   --print ("tc:",_slots)
-  (errs,res) <- runInfer u (tcRange xstate te last high)
-  sequence_ [ printf "**ERROR: %s" (show e) | e <- errs ]
+  (errs,res) <- runInfer (locate last) u (tcRange xstate te last high)
+
+  let
+    reportTypeError = True
+
+  when reportTypeError $
+    sequence_ [ printf "** TypeError: %s\n" (show e) | e <- errs ]
+
   case res of
     (u,subst,te1) -> do
       let te2 = subTenv subst te1 -- TODO: can we avoid this?
@@ -151,7 +168,10 @@ tcAddr xstate@X.State{mem} te@Tenv{m} a = do
       pure (contents,te)
     Nothing -> do
       case Map.lookup a mem of
-        Nothing -> error (show ("tcAddr: no slot at address",a))
+        Nothing -> do
+          --error (show ("tcAddr: no slot at address",a)) -- snake/allot
+          let ts = TS_Elem num -- hack
+          pure (ts,te)
         Just slot -> do
           --Message (show ("tcAddr",a,slot,"..."))
           (ts,te1) <- tcSlot xstate te a slot
@@ -296,8 +316,11 @@ tcPrim xstate te a1 = \case
 nextSlotAddr :: X.State -> Addr -> Addr
 nextSlotAddr X.State{mem} a =
   case Map.lookup a mem of
-    Nothing -> error (show ("nextSlotAddr: no slot at address",a))
-    Just slot -> offsetAddr (slotSize slot) a
+    Nothing ->
+      --error (show ("nextSlotAddr: no slot at address",a)) --snake/allot
+      offsetAddr 1 a -- hack
+    Just slot ->
+      offsetAddr (slotSize slot) a
 
 
 composeTrans :: Trans -> Trans -> Infer Trans

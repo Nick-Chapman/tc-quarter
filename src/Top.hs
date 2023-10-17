@@ -1,6 +1,7 @@
 
 module Top (main) where
 
+import Control.Monad (when)
 import Execution (Interaction(..),Loc(..),Def(..))
 import System.IO (hFlush, stdout)
 import Tests (run)
@@ -21,9 +22,13 @@ _main = do
     | f <-
         [ "quarter.q"
         , "forth.f"
-        --, "tools.f"
-        --, "examples.f"
-        --, "start.f"
+        , "tools.f"
+        , "regression.f"
+        , "examples.f"
+        , "primes.f"
+        , "snake.f"
+        , "buffer.f"
+        , "start.f"
         ]
     ]
   go inp
@@ -65,11 +70,13 @@ runInteraction = loop tenv0
         e <- TypeChecking.tc m tenv a
         case e of
           (tenv,__subst) -> do
-            sequence_ [ report tenv def | def <- defs ]
+            let
+              reportInfer = True
+            when reportInfer $
+              sequence_ [ report tenv def | def <- defs ]
             loop tenv inp i
 
     flush = hFlush stdout
-
 
 report :: Tenv -> Def -> IO ()
 report tenv = \case
