@@ -346,7 +346,9 @@ is-space-left-in-buffer :: (s.&c1 -- s.Num)
 is-newline :: (s.Num -- s.Num)
 is-backspace :: (s.Num -- s.Num)
 is-printable :: (s.Num -- s.Num)
+**{EchoEnabled}
 echo-enabled :: (s -- s.&c1)
+**{EchoOff}
 echo-on :: (s -- s)
 echo-off :: (s -- s)
 echo :: (s.Num -- s)
@@ -362,6 +364,7 @@ kb-pointer :: (s -- s.&c1)
 reset-kb-pointer :: (s -- s)
 ** TypeError: ../quarter-forth/f/buffer.f:65.3 : stack cyclic: s5608.x5601 ~ s5608
 buffered-key :: (s -- s.Num)
+**{SetKey}
 
 Welcome to Quarter Forth. A 16-bit Forth system running on x86.
 
@@ -369,5 +372,6 @@ Bytes available: 55224
 
 ** TypeError: ../quarter-forth/f/start.f:9.3 : contents: Num ~ Char
 wipe :: (s.&Char -- s)
+**{StartupIsComplete}
 #machine-ticks=8796067
 #errors=52

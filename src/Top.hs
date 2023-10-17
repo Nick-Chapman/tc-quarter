@@ -73,7 +73,7 @@ runInteraction = loop tenv0
         case e of
           (tenv,__subst) -> do
             let
-              reportInfer = False
+              reportInfer = True
             when reportInfer $
               sequence_ [ report tenv def | def <- defs ]
             loop tenv inp i
