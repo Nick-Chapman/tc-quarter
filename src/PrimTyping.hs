@@ -12,6 +12,9 @@ import Types
 
 typeOfPrim :: Prim -> Trans
 typeOfPrim = \case
+  -- TODO: Cant yet type return stack ops correctly
+  FromReturnStack -> s ~~> (s ~ x1)
+  ToReturnStack -> (s ~ x1) ~~> s
   Add -> (s ~ x1 ~ num) ~~> (s ~ x1)
   Branch0 -> (s ~ x1) ~~> s
   CR -> (s ~~> s)
@@ -26,10 +29,8 @@ typeOfPrim = \case
   Dup -> (s ~ x1) ~~> (s ~ x1 ~ x1)
   Emit -> s ~ num ~~> s
   Equal -> (s ~ x1 ~ x1) ~~> (s ~ num)
-
   Execute -> (s ~ xt(s ~~> s2)) ~~> s2
   --Execute -> (s ~ xt(s ~~> s2)) ~~> s3 -- TODO: magic
-
   Fetch -> (s ~ addr_cell x1) ~~> (s ~ x1)
   HerePointer -> s ~~> (s ~ addr_cell (addr c1))
   IsHidden -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ num)
@@ -49,51 +50,42 @@ typeOfPrim = \case
   XtToName -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ addr char)
   XtToNext -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ xt (s4 ~~> s5)) -- TODO: skolem!
   Zero -> s ~~> (s ~ x1) -- an XT can be zero :(
-
-  EntryComma -> do
-    (s ~ addr char) ~~> s -- TODO ??
-
-  Kdx_K -> undefined
-  Kdx_D -> undefined
-  Kdx_X -> undefined
-  SetTabEntry -> undefined
-  Nop -> undefined
-
+  EntryComma -> do (s ~ addr char) ~~> s -- TODO ??
   Branch -> s ~~> s
-
-  Exit -> undefined -- TODO here also?
   Mul -> (s ~ num ~ num) ~~> (s ~ num)
   Xor -> (s ~ num ~ num) ~~> (s ~ num)
-
   Crash -> s ~~> s2 -- TODO: magic, ok
-
-  FlipImmediate ->
-    (s ~ xt (s2 ~~> s3)) ~~> s
-
-  FlipHidden ->
-    (s ~ xt (s2 ~~> s3)) ~~> s
-
-  -- TODO: Cant type return stack ops properly... (yet!)
-  FromReturnStack -> s ~~> (s ~ x1)
-  ToReturnStack -> (s ~ x1) ~~> s
-
-  DivMod ->
-    (s ~ num ~ num) ~~> (s ~ num ~ num)
-
+  FlipImmediate -> (s ~ xt (s2 ~~> s3)) ~~> s
+  FlipHidden -> (s ~ xt (s2 ~~> s3)) ~~> s
+  DivMod -> (s ~ num ~ num) ~~> (s ~ num ~ num)
   KeyNonBlocking -> s ~~> (s ~ num)
-
   C_Store -> (s ~ num ~ addr char) ~~> s
-
   BitShiftRight -> (s ~ num) ~~> (s ~ num)
   Sp -> s ~~> (s ~ addr_cell num)
   Sp0 -> s ~~> (s ~ addr_cell num)
   ReturnStackPointer -> s ~~> (s ~ addr_cell x1)
   ReturnStackPointerBase -> s ~~> (s ~ addr_cell x1)
-  GetKey -> undefined
   Time ->  s ~~> (s ~ num ~ num)
-  StartupIsComplete -> undefined
   EchoOn -> s ~~> s
+  EchoOff -> s ~~> s
   EchoEnabled -> s ~~> (s ~ num)
+  SetCursorShape -> (s ~ num) ~~> s
+  SetCursorPosition -> (s ~ num) ~~> s
+  ReadCharCol -> s ~~> (s ~ num ~ num)
+  WriteCharCol -> (s ~ num ~ num) ~~> s
+  Cls -> s ~~> s
+  KEY -> s ~~> (s ~ num)
+
+  -- TODO: unimplemented
+  Kdx_K -> undefined
+  Kdx_D -> undefined
+  Kdx_X -> undefined
+  SetTabEntry -> undefined
+  Nop -> undefined
+  Exit -> undefined -- never get here?
+  GetKey -> undefined
+  StartupIsComplete -> undefined
+  SetKey -> undefined
 
   where
     _x = skolem

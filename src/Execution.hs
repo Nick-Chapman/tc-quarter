@@ -114,7 +114,15 @@ kernelDictionary =
   , ("time", Time)
   , ("startup-is-complete", StartupIsComplete)
   , ("echo-on", EchoOn)
+  , ("echo-off", EchoOff)
   , ("echo-enabled", EchoEnabled)
+  , ("set-cursor-shape",SetCursorShape)
+  , ("set-cursor-position",SetCursorPosition)
+  , ("read-char-col",ReadCharCol)
+  , ("write-char-col",WriteCharCol)
+  , ("cls",Cls)
+  , ("KEY",KEY)
+  , ("set-key",SetKey)
   ]
 
 data Interaction
@@ -349,7 +357,7 @@ prim1 = \case
     let Entry{immediate} = entryOfSlot slot
     Push (valueOfBool immediate)
   CrashOnlyDuringStartup -> do
-    --Abort "CrashOnlyDuringStartup"
+    Abort "CrashOnlyDuringStartup"
     pure ()
   Crash -> do
     Abort "Crash"
@@ -377,8 +385,6 @@ prim1 = \case
     let (d,m) = valueDivMod a b
     Push m
     Push d
-  KeyNonBlocking -> do
-    undefined
   BitShiftRight -> do
     a <- Pop
     Push (valueShiftRight a)
@@ -387,12 +393,10 @@ prim1 = \case
   Sp -> do
     a <- StackPointer
     Push (valueOfAddr a)
-  ReturnStackPointer -> do
-    undefined
-  ReturnStackPointerBase -> do
-    undefined
   GetKey -> do
     Push (valueOfAddr (AP Key))
+
+  -- dummy
   Time -> do
     Push (valueOfNumb 123)
     Push (valueOfNumb 456)
@@ -400,9 +404,34 @@ prim1 = \case
     pure ()
   EchoOn -> do
     pure ()
+  EchoOff -> do
+    pure ()
   EchoEnabled -> do
     Push (valueOfBool False)
     pure ()
+  SetKey -> do
+    _ <- Pop
+    pure ()
+  KEY -> do
+    Push (valueOfNumb 0)
+
+  -- unimplemented
+  KeyNonBlocking -> do
+    undefined
+  ReturnStackPointer -> do
+    undefined
+  ReturnStackPointerBase -> do
+    undefined
+  SetCursorShape -> do
+    undefined
+  SetCursorPosition -> do
+    undefined
+  ReadCharCol -> do
+    undefined
+  WriteCharCol -> do
+    undefined
+  Cls -> do
+    undefined
 
 
 paramStackBase :: Addr

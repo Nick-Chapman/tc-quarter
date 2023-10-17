@@ -20,6 +20,7 @@ _main = do
   inp <- inputFiles
     [ "../quarter-forth/f/" ++ f
     | f <-
+        -- TODO: read this from ../quarter-forth/full.list
         [ "quarter.q"
         , "forth.f"
         , "tools.f"
@@ -71,7 +72,7 @@ runInteraction = loop tenv0
         case e of
           (tenv,__subst) -> do
             let
-              reportInfer = True
+              reportInfer = False
             when reportInfer $
               sequence_ [ report tenv def | def <- defs ]
             loop tenv inp i

@@ -36,5 +36,13 @@ data Prim
   | Time
   | StartupIsComplete
   | EchoOn
+  | EchoOff
   | EchoEnabled
+  | SetCursorShape
+  | SetCursorPosition
+  | ReadCharCol
+  | WriteCharCol
+  | Cls
+  | KEY
+  | SetKey
   deriving (Eq,Ord,Show,Enum,Bounded)
