@@ -398,39 +398,48 @@ prim1 = \case
 
   -- dummy
   Time -> do
+    Message "{Time}"
     Push (valueOfNumb 123)
     Push (valueOfNumb 456)
-  StartupIsComplete -> do
-    pure ()
-  EchoOn -> do
-    pure ()
-  EchoOff -> do
-    pure ()
-  EchoEnabled -> do
-    Push (valueOfBool False)
-    pure ()
   SetKey -> do
+    Message "{SetKey}"
     _ <- Pop
     pure ()
   KEY -> do
+    Message "{KEY}"
     Push (valueOfNumb 0)
+  EchoEnabled -> do
+    Message "{EchoEnabled}"
+    Push (valueOfBool False)
+  StartupIsComplete -> do
+    Message "{StartupIsComplete}"
+  EchoOn -> do
+    Message "{EchoOn}"
+  EchoOff -> do
+    Message "{EchoOff}"
+  Cls -> do
+    Message "{Cls}"
+  SetCursorShape -> do
+    Message "{SetCursorShape}"
+  SetCursorPosition -> do
+    Message "{SetCursorPosition}"
+  WriteCharCol -> do
+    Message "{WriteCharCol}"
+    _ <- Pop
+    _ <- Pop
+    pure ()
+  KeyNonBlocking -> do
+    Message "{KeyNonBlocking}"
+    Push (valueOfNumb 0)
+  ReadCharCol -> do
+    Message "{ReadCharCol}"
+    Push (valueOfNumb 11)
+    Push (valueOfNumb 22)
 
   -- unimplemented
-  KeyNonBlocking -> do
-    undefined
   ReturnStackPointer -> do
     undefined
   ReturnStackPointerBase -> do
-    undefined
-  SetCursorShape -> do
-    undefined
-  SetCursorPosition -> do
-    undefined
-  ReadCharCol -> do
-    undefined
-  WriteCharCol -> do
-    undefined
-  Cls -> do
     undefined
 
 
@@ -449,7 +458,7 @@ exec = \case
         v <- RPop
         exec (addrOfValue v)
       SlotLit{} ->
-        Abort "exec: SLotLit"
+        Abort "exec: SLotLit" -- TODO: snake hits here, PS crashes into code
       SlotChar{} ->
         Abort "exec: SlotChar"
       SlotEntry{} -> do
@@ -626,9 +635,22 @@ data State = State
   }
 
 instance Show State where
-  show State{pstack=_p,rstack=_r} = do
+  show State{tick,pstack,rstack,sp,mem} = do
     -- TODO show param-stack using sp/mem
-    printf "%s ; %s" (show (reverse _p)) (show _r)
+    --printf "%s ; %s" (show (reverse pstack)) (show rstack)
+    printf "#tick=%d, #ps=%d, #rs=%d, here=%s, sp=%s"
+      tick
+      (length pstack)
+      (length rstack)
+      (show here)
+      (show sp)
+
+      where
+        here :: Addr
+        here = do
+          let slot = maybe undefined id $ Map.lookup addrOfHere mem
+          addrOfValue (valueOfSlot slot)
+
 
 machine0 :: State
 machine0 = State
@@ -724,7 +746,7 @@ instance Show Value where
 
 instance Show Addr where
   show = \case
-    AN n -> printf "%d" n
+    AN n -> printf "%d" n -- TODO: hex better?
     AP p -> printf "%s" (show p)
     APE p -> printf "Entry:%s" (show p)
     AS s -> printf "%s" (show s)

@@ -48,6 +48,7 @@ runInteraction = loop tenv0
         printf "#errors=%d\n" nErrs
       IError s _m -> do
         printf "\n**Error: %s\n" s
+        print _m
       IDebug m i -> do
         printf "%s\n" (show m)
         loop tenv inp i
@@ -72,7 +73,7 @@ runInteraction = loop tenv0
         case e of
           (tenv,__subst) -> do
             let
-              reportInfer = True
+              reportInfer = False
             when reportInfer $
               sequence_ [ report tenv def | def <- defs ]
             loop tenv inp i
