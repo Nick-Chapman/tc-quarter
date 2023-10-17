@@ -294,15 +294,14 @@ setV :: (s -- s)
 shift-x :: (s.Num -- s)
 shift-y :: (s.Num -- s)
 shift-xy :: (s.Num -- s)
-head-to-tail-loop :: (s.Num -- s.Num)
-head-to-tail :: (s -- s.Num)
+head-to-tail-loop :: (s.Num -- s)
+head-to-tail :: (s -- s)
 clear-tail :: (s -- s)
 maybe-grow :: (s.Num -- s)
 tick :: (s -- s)
 tick2 :: (s -- s)
 pause1 :: (s -- s)
 do-pause :: (s -- s)
-** TypeError: ../quarter-forth/f/snake.f:138.3 (branch0) : stack cyclic: s4893.x4892 ~ s4893
 speed-up :: (s -- s)
 is-escape :: (s.Num -- s.Num)
 is-return :: (s.Num -- s.Num)
@@ -310,10 +309,9 @@ control :: (s.Num.Num -- s)
 snake-char :: (s -- s.Num)
 draw-head :: (s -- s)
 collide? :: (s -- s.Num)
-** TypeError: ../quarter-forth/f/snake.f:163.3 (branch0) : stack cyclic: s5232 ~ s5232.Num.Num
+wait :: (s -- s)
 app-loop :: (s -- s.Num)
-** TypeError: ../quarter-forth/f/snake.f:174.3 (branch0) : stack cyclic: s5278 ~ s5278.Num
-snake :: (s -- s.Num)
+snake :: (s -- s)
 Loading buffer
 old-key :: (s -- s.&(s1 -- s1.Num))
 raw-key :: (s -- s.Num)
@@ -331,25 +329,25 @@ echo-on :: (s -- s)
 echo-off :: (s -- s)
 echo :: (s.Num -- s)
 ok :: (s -- s)
-** TypeError: ../quarter-forth/f/buffer.f:30.3 (compose) : elem: Num ~ &c5484
-** TypeError: ../quarter-forth/f/buffer.f:30.3 (branch0) : elem: Num ~ &c5543
+** TypeError: ../quarter-forth/f/buffer.f:30.3 (compose) : elem: Num ~ &c5498
+** TypeError: ../quarter-forth/f/buffer.f:30.3 (branch0) : elem: Num ~ &c5557
 ** TypeError: ../quarter-forth/f/buffer.f:30.3 (compose) : elem: Num ~ &Char
 fill-loop :: (s.Num -- s.Num)
 ** TypeError: ../quarter-forth/f/buffer.f:54.3 (compose) : elem: Num ~ &Char
-** TypeError: ../quarter-forth/f/buffer.f:54.3 (compose) : elem: &c5577 ~ Num
+** TypeError: ../quarter-forth/f/buffer.f:54.3 (compose) : elem: &c5591 ~ Num
 fill :: (s -- s)
 kb-pointer :: (s -- s.&c1)
 reset-kb-pointer :: (s -- s)
-** TypeError: ../quarter-forth/f/buffer.f:65.3 (branch0) : stack cyclic: s5636.x5629 ~ s5636
+** TypeError: ../quarter-forth/f/buffer.f:65.3 (branch0) : stack cyclic: s5650.x5643 ~ s5650
 buffered-key :: (s -- s.Num)
 **{SetKey}
 
 Welcome to Quarter Forth. A 16-bit Forth system running on x86.
 
-Bytes available: 55218 
+Bytes available: 55196 
 
 ** TypeError: ../quarter-forth/f/start.f:9.3 (compose) : contents: Num ~ Char
 wipe :: (s.&Char -- s)
 **{StartupIsComplete}
-#machine-ticks=8777289
-#errors=30
+#machine-ticks=8799493
+#errors=27
