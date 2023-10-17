@@ -65,9 +65,10 @@ data Infer a where
   SubContents :: CVar -> Contents -> Infer ()
   Nope :: String -> Infer ()
   CurrentSub :: Infer Subst
-  FreshS :: Infer SVar
+  FreshS :: Infer SVar -- TODO: combine 3x Fresh ops
   FreshE :: Infer EVar
   FreshC :: Infer CVar
+  Context :: String -> Infer a -> Infer a
 
 type InfRes a = IO ([TypeError],a)
 
@@ -99,9 +100,9 @@ runInfer loc u0 inf0 = loop (state0 u0) inf0 k0
         let State{subst} = s
         subst' <- extendSubstContents subst v c
         k () s { subst = subst' }
-      Nope mes -> do
-        let err = TypeError loc mes
-        let State{errs} = s
+      Nope message -> do
+        let State{errs,context} = s
+        let err = TypeError { loc, why = context, message }
         k () s { errs = err : errs }
       CurrentSub -> do
         let State{subst} = s
@@ -118,11 +119,18 @@ runInfer loc u0 inf0 = loop (state0 u0) inf0 k0
         let State{u} = s
         let x = CVar u
         k x s { u = u + 1 }
+      Context why m -> do
+        loop s { context = why } m k
 
-data State = State { subst :: Subst, u :: Int, errs :: [TypeError] }
+data State = State
+  { subst :: Subst
+  , u :: Int
+  , errs :: [TypeError]
+  , context :: String -- why do we unify?
+  }
 
 state0 :: Int -> State
-state0 u = State { subst = subst0, u, errs = [] }
+state0 u = State { subst = subst0, u, errs = [], context = "top" }
 
 ----------------------------------------------------------------------
 -- sub*
@@ -231,8 +239,12 @@ extendSubstContents Subst{s,e,c} key replacement = do
                , c = Map.insert key replacement (Map.map (subContents sub1) c)
                }
 
-data TypeError = TypeError Loc String -- TODO: needs fleshing out!
+data TypeError = TypeError
+  { loc :: Loc
+  , why :: String -- why are we unifying?
+  , message :: String
+  }
 
 instance Show TypeError where
-  show (TypeError loc mes) =
-    printf "%s : %s" (show loc) mes
+  show TypeError{loc,why,message} =
+    printf "%s (%s) : %s" (show loc) why message

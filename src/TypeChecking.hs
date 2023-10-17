@@ -223,6 +223,7 @@ tcSlot xstate te a0 slot = do
           case (ts2,ts3) of
             (TS_Trans trans2, TS_Trans trans3) -> do
               --Message (show ("unifyTrans:",trans2,trans3))
+              Context "branch0" $ do
               unifyTrans trans2 trans3
               trans <- composeTrans trans1 trans2
               pure (TS_Trans trans,te3)
@@ -328,6 +329,7 @@ composeTrans e1 e2 = do
   case (e1,e2) of
     (T_Trans m1 m2, T_Trans m3 m4) -> do
       --Message "unifyMachine..."
+      Context "compose" $ do
       unifyMachine m2 m3
       pure (T_Trans m1 m4)
 

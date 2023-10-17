@@ -120,12 +120,12 @@ hex-digit? :: (s.Num -- s.Num)
 digit? :: (s.Num -- s.Num)
 convert-digit :: (s.Num -- s.Num)
 base :: (s -- s.Num)
-** TypeError: ../quarter-forth/f/forth.f:362.3 : stack cyclic: s2098.Num ~ s2098
+** TypeError: ../quarter-forth/f/forth.f:362.3 (branch0) : stack cyclic: s2098.Num ~ s2098
 number-loop :: (s.Num.&Char -- s.Num.Num)
-** TypeError: ../quarter-forth/f/forth.f:370.3 : stack cyclic: s2130.x2137 ~ s2130
+** TypeError: ../quarter-forth/f/forth.f:370.3 (branch0) : stack cyclic: s2130.x2137 ~ s2130
 number? :: (s.&Char -- s.Num.Num)
 print-digit :: (s.Num -- s)
-** TypeError: ../quarter-forth/f/forth.f:384.3 : stack cyclic: s2164 ~ s2164.Num
+** TypeError: ../quarter-forth/f/forth.f:384.3 (branch0) : stack cyclic: s2164 ~ s2164.Num
 dot-loop :: (s.Num -- s)
 .decimal :: (s.Num -- s)
 .hex1 :: (s.Num -- s)
@@ -137,39 +137,39 @@ dot-loop :: (s.Num -- s)
 s= :: (s.&Char.&Char -- s.Num)
 find-loop :: (s.&Char.&(s1 -- s2) -- s.&(s1 -- s2))
 find :: (s.&Char -- s.&(s1 -- s2))
-** TypeError: ../quarter-forth/f/forth.f:430.3 : stack cyclic: s2455.x2444 ~ s2455
+** TypeError: ../quarter-forth/f/forth.f:430.3 (branch0) : stack cyclic: s2455.x2444 ~ s2455
 find! :: (s.&Char -- s.&(s1 -- s2))
 ' :: (s -- s.&(s1 -- s2))
-** TypeError: ../quarter-forth/f/forth.f:441.3 : elem: Num ~ &Char
+** TypeError: ../quarter-forth/f/forth.f:441.3 (compose) : elem: Num ~ &Char
 compiling :: (s -- s)
 : :: (s -- s)
-** TypeError: ../quarter-forth/f/forth.f:453.3 : elem: Num ~ &Char
+** TypeError: ../quarter-forth/f/forth.f:453.3 (compose) : elem: Num ~ &Char
 [ :: (s -- s)
 Loading tools
 x :: (s.Num.Num -- s)
 mem :: (s -- s)
-** TypeError: ../quarter-forth/f/tools.f:18.3 : elem: &Num ~ Num
-** TypeError: ../quarter-forth/f/tools.f:18.3 : elem: &Num ~ Num
-** TypeError: ../quarter-forth/f/tools.f:18.3 : elem: &c2751 ~ Num
+** TypeError: ../quarter-forth/f/tools.f:18.3 (compose) : elem: &Num ~ Num
+** TypeError: ../quarter-forth/f/tools.f:18.3 (compose) : elem: &Num ~ Num
+** TypeError: ../quarter-forth/f/tools.f:18.3 (compose) : elem: &c2751 ~ Num
 memv :: (s -- s)
 e8 :: (s -- s.Num)
 c3 :: (s -- s.Num)
 is-call :: (s.Num -- s.Num)
 is-ret :: (s.Num -- s.Num)
 @rel->abs :: (s.&Num -- s.&Num)
-** TypeError: ../quarter-forth/f/tools.f:39.3 : contents: Num ~ (s2882 -- s2883)
-** TypeError: ../quarter-forth/f/tools.f:39.3 : contents: Num ~ Char
-** TypeError: ../quarter-forth/f/tools.f:39.3 : contents: Num ~ Char
+** TypeError: ../quarter-forth/f/tools.f:39.3 (compose) : contents: Num ~ (s2882 -- s2883)
+** TypeError: ../quarter-forth/f/tools.f:39.3 (branch0) : contents: Num ~ Char
+** TypeError: ../quarter-forth/f/tools.f:39.3 (compose) : contents: Num ~ Char
 disassemble :: (s.&Num -- s)
-** TypeError: ../quarter-forth/f/tools.f:56.3 : contents: (s2970 -- s2971) ~ Num
+** TypeError: ../quarter-forth/f/tools.f:56.3 (compose) : contents: (s2970 -- s2971) ~ Num
 x-see :: (s.&(s1 -- s2) -- s)
-** TypeError: ../quarter-forth/f/tools.f:63.3 : stack cyclic: s3002.&(s3000 -- s3001) ~ s3002
+** TypeError: ../quarter-forth/f/tools.f:63.3 (branch0) : stack cyclic: s3002.&(s3000 -- s3001) ~ s3002
 see :: (s -- s)
-** TypeError: ../quarter-forth/f/tools.f:68.3 : elem: Num ~ &Num
-** TypeError: ../quarter-forth/f/tools.f:68.3 : elem: &Num ~ Num
-** TypeError: ../quarter-forth/f/tools.f:68.3 : elem: Num ~ &Num
+** TypeError: ../quarter-forth/f/tools.f:68.3 (compose) : elem: Num ~ &Num
+** TypeError: ../quarter-forth/f/tools.f:68.3 (compose) : elem: &Num ~ Num
+** TypeError: ../quarter-forth/f/tools.f:68.3 (compose) : elem: Num ~ &Num
 .s-continue :: (s.Num -- s)
-** TypeError: ../quarter-forth/f/tools.f:77.3 : elem: &Num ~ Num
+** TypeError: ../quarter-forth/f/tools.f:77.3 (compose) : elem: &Num ~ Num
 .s :: (s -- s)
 depth :: (s -- s.Num)
 rdepth :: (s -- s.Num)
@@ -178,12 +178,12 @@ times :: (s.&(s -- s1).x2 -- s)
 old-key :: (s -- s.&(s1 -- s1.Num))
 raw-key :: (s -- s.Num)
 is-escape :: (s.Num -- s.Num)
-** TypeError: ../quarter-forth/f/tools.f:113.3 : elem cyclic: x3159 ~ &(s3158.x3159.x3160 -- s3197.x3187.x3184)
+** TypeError: ../quarter-forth/f/tools.f:113.3 (compose) : elem cyclic: x3159 ~ &(s3158.x3159.x3160 -- s3197.x3187.x3184)
 pag-continue :: (s.x2.x3 -- s1)
 pag :: (s.x2.x3 -- s1)
 is-printable? :: (s.Num -- s.Num)
 emit-printable-or-dot :: (s.Num -- s)
-** TypeError: ../quarter-forth/f/tools.f:130.3 : stack cyclic: s3260.x3259 ~ s3260
+** TypeError: ../quarter-forth/f/tools.f:130.3 (branch0) : stack cyclic: s3260.x3259 ~ s3260
 drop-if-not-zero :: (s.x1 -- s)
 default-0 :: (s -- s)
 dc :: (s.&Char -- s.&Char)
@@ -271,31 +271,19 @@ border :: (s -- s)
 max-len :: (s -- s.Num)
 xta :: (s -- s.&c1)
 yta :: (s -- s.&c1)
-** TypeError: ../quarter-forth/f/snake.f:74.3 : elem: &c4381 ~ Num
-xpos :: (s.Num -- s.Num)
-** TypeError: ../quarter-forth/f/snake.f:75.3 : elem: &c4390 ~ Num
-ypos :: (s.Num -- s.Num)
+xpos :: (s.Num -- s.&c1)
+ypos :: (s.Num -- s.&c1)
 direction :: (s -- s.&c1)
 going-vertical :: (s -- s.&c1)
 escaped :: (s -- s.&c1)
 slowness :: (s -- s.&c1)
 len :: (s -- s.&c1)
 -1 :: (s -- s.Num)
-** TypeError: ../quarter-forth/f/snake.f:88.3 : elem: Num ~ &x4444
-** TypeError: ../quarter-forth/f/snake.f:88.3 : elem: Num ~ &x4444
 left :: (s -- s)
-** TypeError: ../quarter-forth/f/snake.f:89.3 : elem: Num ~ &x4466
-** TypeError: ../quarter-forth/f/snake.f:89.3 : elem: Num ~ &x4466
 right :: (s -- s)
-** TypeError: ../quarter-forth/f/snake.f:90.3 : elem: Num ~ &x4488
-** TypeError: ../quarter-forth/f/snake.f:90.3 : elem: Num ~ &x4488
 up :: (s -- s)
-** TypeError: ../quarter-forth/f/snake.f:91.3 : elem: Num ~ &x4510
-** TypeError: ../quarter-forth/f/snake.f:91.3 : elem: Num ~ &x4510
 down :: (s -- s)
 nop :: (s -- s)
-** TypeError: ../quarter-forth/f/snake.f:94.3 : elem: Num ~ &x4532
-** TypeError: ../quarter-forth/f/snake.f:94.3 : elem: Num ~ &x4522
 set-start-state :: (s -- s)
 move-head :: (s -- s1)
 set-dir :: (s.x1 -- s)
@@ -303,38 +291,28 @@ isH :: (s -- s.Num)
 isV :: (s -- s.x1)
 setH :: (s -- s)
 setV :: (s -- s)
-** TypeError: ../quarter-forth/f/snake.f:112.3 : elem: Num ~ &x4652
-** TypeError: ../quarter-forth/f/snake.f:112.3 : elem: Num ~ &x4652
 shift-x :: (s.Num -- s)
-** TypeError: ../quarter-forth/f/snake.f:113.3 : elem: Num ~ &x4675
-** TypeError: ../quarter-forth/f/snake.f:113.3 : elem: Num ~ &x4675
 shift-y :: (s.Num -- s)
 shift-xy :: (s.Num -- s)
 head-to-tail-loop :: (s.Num -- s.Num)
 head-to-tail :: (s -- s.Num)
-** TypeError: ../quarter-forth/f/snake.f:122.3 : elem: Num ~ &Num
-** TypeError: ../quarter-forth/f/snake.f:122.3 : elem: Num ~ &Num
 clear-tail :: (s -- s)
 maybe-grow :: (s.Num -- s)
 tick :: (s -- s)
 tick2 :: (s -- s)
 pause1 :: (s -- s)
 do-pause :: (s -- s)
-** TypeError: ../quarter-forth/f/snake.f:138.3 : stack cyclic: s4869.x4868 ~ s4869
+** TypeError: ../quarter-forth/f/snake.f:138.3 (branch0) : stack cyclic: s4893.x4892 ~ s4893
 speed-up :: (s -- s)
 is-escape :: (s.Num -- s.Num)
 is-return :: (s.Num -- s.Num)
 control :: (s.Num.Num -- s)
 snake-char :: (s -- s.Num)
-** TypeError: ../quarter-forth/f/snake.f:155.3 : elem: Num ~ &x5044
-** TypeError: ../quarter-forth/f/snake.f:155.3 : elem: Num ~ &Num
 draw-head :: (s -- s)
-** TypeError: ../quarter-forth/f/snake.f:157.3 : elem: Num ~ &Num
-** TypeError: ../quarter-forth/f/snake.f:157.3 : elem: Num ~ &Num
 collide? :: (s -- s.Num)
-** TypeError: ../quarter-forth/f/snake.f:164.3 : stack cyclic: s5204 ~ s5204.Num.Num
+** TypeError: ../quarter-forth/f/snake.f:163.3 (branch0) : stack cyclic: s5232 ~ s5232.Num.Num
 app-loop :: (s -- s.Num)
-** TypeError: ../quarter-forth/f/snake.f:179.3 : stack cyclic: s5250 ~ s5250.Num
+** TypeError: ../quarter-forth/f/snake.f:174.3 (branch0) : stack cyclic: s5278 ~ s5278.Num
 snake :: (s -- s.Num)
 Loading buffer
 old-key :: (s -- s.&(s1 -- s1.Num))
@@ -353,25 +331,25 @@ echo-on :: (s -- s)
 echo-off :: (s -- s)
 echo :: (s.Num -- s)
 ok :: (s -- s)
-** TypeError: ../quarter-forth/f/buffer.f:30.3 : elem: Num ~ &c5456
-** TypeError: ../quarter-forth/f/buffer.f:30.3 : elem: Num ~ &c5515
-** TypeError: ../quarter-forth/f/buffer.f:30.3 : elem: Num ~ &Char
+** TypeError: ../quarter-forth/f/buffer.f:30.3 (compose) : elem: Num ~ &c5484
+** TypeError: ../quarter-forth/f/buffer.f:30.3 (branch0) : elem: Num ~ &c5543
+** TypeError: ../quarter-forth/f/buffer.f:30.3 (compose) : elem: Num ~ &Char
 fill-loop :: (s.Num -- s.Num)
-** TypeError: ../quarter-forth/f/buffer.f:54.3 : elem: Num ~ &Char
-** TypeError: ../quarter-forth/f/buffer.f:54.3 : elem: &c5549 ~ Num
+** TypeError: ../quarter-forth/f/buffer.f:54.3 (compose) : elem: Num ~ &Char
+** TypeError: ../quarter-forth/f/buffer.f:54.3 (compose) : elem: &c5577 ~ Num
 fill :: (s -- s)
 kb-pointer :: (s -- s.&c1)
 reset-kb-pointer :: (s -- s)
-** TypeError: ../quarter-forth/f/buffer.f:65.3 : stack cyclic: s5608.x5601 ~ s5608
+** TypeError: ../quarter-forth/f/buffer.f:65.3 (branch0) : stack cyclic: s5636.x5629 ~ s5636
 buffered-key :: (s -- s.Num)
 **{SetKey}
 
 Welcome to Quarter Forth. A 16-bit Forth system running on x86.
 
-Bytes available: 55224 
+Bytes available: 55218 
 
-** TypeError: ../quarter-forth/f/start.f:9.3 : contents: Num ~ Char
+** TypeError: ../quarter-forth/f/start.f:9.3 (compose) : contents: Num ~ Char
 wipe :: (s.&Char -- s)
 **{StartupIsComplete}
-#machine-ticks=8796067
-#errors=52
+#machine-ticks=8777289
+#errors=30
