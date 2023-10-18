@@ -80,23 +80,23 @@ tc xstate te@Tenv{u,last,nErrs} high = do
   --printf "\n%s\n" (show _slots)
   let loc = lookupAddrLocation context last
   (errs,res) <- runInfer loc u (tcRange context te last high)
-  let
-    reportTypeError = True
-  when reportTypeError $
+  let (u,subst,te1) = res
+  let te2 = subTenv subst te1 -- TODO: can we avoid this?
+
+  let reportTypeError = True
+
+  when reportTypeError $ do
     sequence_ [ printf "** TypeError: %s\n" (show e) | e <- errs ]
-  case res of
-    (u,subst,te1) -> do
-      let te2 = subTenv subst te1 -- TODO: can we avoid this?
-      let res =
-            ( te2
-              { last = high
-              , u
-              , nErrs = length errs + nErrs
-              }
-            , subst
-            )
-      --printf "\n%s\n" (show te2)
-      pure res
+    case errs of [] -> pure (); _ -> printf "\n%s\n" (show te2)
+
+  pure
+    ( te2
+      { last = high
+      , u
+      , nErrs = length errs + nErrs
+      }
+    , subst
+    )
 
 
 data Tenv = Tenv

@@ -121,11 +121,103 @@ digit? :: (s.Num -- s.Num)
 convert-digit :: (s.Num -- s.Num)
 base :: (s -- s.Num)
 ** TypeError: ../quarter-forth/f/forth.f:362.3 (branch0) : stack cyclic: s2098.Num ~ s2098
+
+3005 : Char
+3006 : Char
+3007 : Char
+3008 : Char
+3009 : Char
+3010 : Char
+3011 : Char
+3012 : Char
+3013 : Char
+3014 : Char
+3015 : Char
+3016 : Char
+3017 : Entry
+3018 : (s.Num.&Char -- s.Num.Num)
+3021 : (s.Num.&Char.&Char -- s.Num.Num)
+3024 : (s.Num.&Char.Num -- s.Num.Num)
+3027 : (s.Num.&Char.Num.Num -- s.Num.Num)
+3030 : (s.Num.&Char.Num.Num.Num -- s.Num.Num)
+3033 : (s.Num.&Char.Num.Num -- s.Num.Num)
+3036 : Num
+3038 : (s.Num.&Char.Num -- s.Num.Num)
+3041 : (s.Num -- s.Num.Num)
+3044 : (s.Num.Num -- s.Num.Num)
+3047 : (s.Num.&Char.Num -- s.Num)
+3050 : (s.Num.&Char.Num.Num -- s.Num)
+3053 : (s.Num.&Char.Num.Num -- s.Num)
+3056 : (s.Num.&Char.Num.Num.Num -- s.Num)
+3059 : (s.Num.&Char.Num.Num.Num.Num -- s.Num)
+3062 : (s.Num.&Char.Num.Num.Num -- s.Num)
+3065 : Num
+3067 : (s.Num.&Char.Num.Num -- s.Num)
+3070 : (s.Num.&Char -- s.Num)
+3073 : (s -- s.Num)
+3076 : (s.Num -- s.Num)
+3079 : (s.Num.&Char.Num.Num -- s.Num)
+3082 : (s.Num.&Char.Num -- s.Num)
+3085 : (s.Num.&Char.Num -- s.Num)
+3088 : (s.&Char.x1.Num -- s.Num)
+3091 : (s.&Char.x1.Num.Num -- s.Num)
+3094 : (s.&Char.x1.Num -- s.Num)
+3097 : (s.&Char.x1 -- s.Num)
+3100 : (s.x1.&Char -- s.Num)
+3103 : (s.x1.&Char -- s.Num)
+3106 : &(s2098.x2100.&Char -- s2098.Num)
+3108 : (s.x1.&Char.&(s.x1.&Char -- s.Num) -- s.Num)
+3111 : (s -- s)
+
 number-loop :: (s.Num.&Char -- s.Num.Num)
 ** TypeError: ../quarter-forth/f/forth.f:370.3 (branch0) : stack cyclic: s2130.x2137 ~ s2130
+
+3112 : Char
+3113 : Char
+3114 : Char
+3115 : Char
+3116 : Char
+3117 : Char
+3118 : Char
+3119 : Char
+3120 : Entry
+3121 : (s.&Char -- s.Num.Num)
+3124 : (s.&Char.&Char -- s.Num.Num)
+3127 : (s.&Char.&Char.Num -- s.Num.Num)
+3130 : (s.&Char.Num.&Char -- s.Num.Num)
+3133 : (s.&Char.Num.Num -- s.Num.Num)
+3136 : (s.&Char.Num.Num.Num -- s.Num.Num)
+3139 : Num
+3141 : (s.&Char.Num.Num -- s.Num.Num)
+3144 : (s.Num.Num.&Char -- s.Num.Num)
+3147 : (s.Num.Num -- s.Num.Num)
+
 number? :: (s.&Char -- s.Num.Num)
 print-digit :: (s.Num -- s)
 ** TypeError: ../quarter-forth/f/forth.f:384.3 (branch0) : stack cyclic: s2164 ~ s2164.Num
+
+3173 : Char
+3174 : Char
+3175 : Char
+3176 : Char
+3177 : Char
+3178 : Char
+3179 : Char
+3180 : Char
+3181 : Char
+3182 : Entry
+3183 : (s.Num -- s)
+3186 : (s.Num.Num -- s)
+3189 : (s.Num.Num -- s)
+3192 : Num
+3194 : (s.Num -- s)
+3197 : (s -- s)
+3200 : (s.Num -- s.Num)
+3203 : (s.Num.Num -- s.Num)
+3206 : (s.Num.Num -- s.Num)
+3209 : (s.Num.Num -- s.Num)
+3212 : (s.Num -- s.Num)
+
 dot-loop :: (s.Num -- s)
 .decimal :: (s.Num -- s)
 .hex1 :: (s.Num -- s)
@@ -140,9 +232,182 @@ find :: (s.&Char -- s.&(s1 -- s2))
 find! :: (s.&Char -- s.&(s1 -- s2))
 ' :: (s -- s.&(s1 -- s2))
 ** TypeError: ../quarter-forth/f/forth.f:441.3 (compose) : elem: Num ~ &Char
+
+3635 : Char
+3636 : Char
+3637 : Char
+3638 : Char
+3639 : Char
+3640 : Char
+3641 : Char
+3642 : Char
+3643 : Char
+3644 : Char
+3645 : Entry
+3646 : (s -- s)
+3649 : (s.&Char -- s)
+3652 : (s.&Char.&Char -- s)
+3655 : Num
+3657 : Char
+3658 : Char
+3659 : (s.&Char.&Char -- s)
+3662 : &Char
+3664 : (s.&Char.&Char.&Char -- s)
+3667 : (s.&Char.Num -- s)
+3670 : Num
+3672 : (s.&Char -- s)
+3675 : (s -- s)
+3678 : (s -- s)
+3681 : (s.&Char -- s)
+3684 : (s.&Char.&Char -- s)
+3687 : (s.&Char.&(s -- s) -- s)
+3690 : (s.&Char.&(s -- s).&(s -- s) -- s)
+3693 : Num
+3695 : (s.&Char.&(s -- s) -- s)
+3698 : (s.&(s -- s).&Char -- s)
+3701 : (s.&(s -- s) -- s)
+3704 : (s.&(s -- s).&(s -- s) -- s)
+3707 : (s.&(s -- s).Num -- s)
+3710 : Num
+3712 : (s.&(s -- s) -- s)
+3715 : (s -- s)
+3718 : Num
+3720 : (s.&(s -- s) -- s)
+3723 : (s -- s)
+3726 : &(s2583 -- s2583)
+3728 : (s.&(s -- s) -- s)
+3731 : (s.&Char.&(s -- s) -- s)
+3734 : (s.&Char -- s)
+3737 : (s.&Char.Num -- s)
+3740 : Num
+3742 : (s.&Char -- s)
+3745 : &(s2547 -- s2547.x2543)
+3747 : (s.&Char.&(s1 -- s1.x2) -- s)
+3750 : (s.&Char -- s)
+3753 : (s -- s)
+3756 : &(s2583 -- s2583)
+3758 : (s.&(s -- s) -- s)
+3761 : (s.&Char -- s)
+3764 : Num
+3766 : Char
+3767 : Char
+3768 : Char
+3769 : Char
+3770 : Char
+3771 : Char
+3772 : Char
+3773 : Char
+3774 : Char
+3775 : Char
+3776 : Char
+3777 : Char
+3778 : Char
+3779 : Char
+3780 : Char
+3781 : Char
+3782 : Char
+3783 : Char
+3784 : Char
+3785 : Char
+3786 : Char
+3787 : (s.&Char -- s)
+3790 : &Char
+3792 : (s.&Char.&Char -- s)
+3795 : (s.&Char -- s)
+3798 : (s -- s)
+3801 : Num
+3803 : Char
+3804 : Char
+3805 : Char
+3806 : Char
+3807 : (s -- s)
+3810 : &Char
+3812 : (s.&Char -- s)
+3815 : (s -- s)
+3818 : (s -- s)
+3821 : (s -- s)
+3824 : &(s2583 -- s2583)
+3826 : (s.&(s -- s) -- s)
+3829 : (s -- s)
+
 compiling :: (s -- s)
 : :: (s -- s)
 ** TypeError: ../quarter-forth/f/forth.f:453.3 (compose) : elem: Num ~ &Char
+
+3843 : Char
+3844 : Char
+3845 : Entry
+3846 : (s -- s)
+3849 : (s.&Char -- s)
+3852 : (s.&Char.&Char -- s)
+3855 : Num
+3857 : Char
+3858 : Char
+3859 : (s.&Char.&Char -- s)
+3862 : &Char
+3864 : (s.&Char.&Char.&Char -- s)
+3867 : (s.&Char.Num -- s)
+3870 : Num
+3872 : (s.&Char -- s)
+3875 : (s -- s)
+3878 : (s.&Char -- s)
+3881 : (s.&Char.&Char -- s)
+3884 : (s.&Char.&(s -- s1) -- s)
+3887 : (s.&Char.&(s -- s1).&(s -- s1) -- s)
+3890 : Num
+3892 : (s.&Char.&(s -- s1) -- s)
+3895 : (s.&(s -- s1).&Char -- s)
+3898 : (s.&(s -- s1) -- s)
+3901 : (s -- s1)
+3904 : &(s2641 -- s2682)
+3906 : (s.&(s -- s1) -- s1)
+3909 : (s.&Char.&(s -- s1) -- s)
+3912 : (s.&Char -- s)
+3915 : (s.&Char.Num -- s)
+3918 : Num
+3920 : (s.&Char -- s)
+3923 : &(s2682.&Char -- s2682)
+3925 : (s.&Char.&(s.&Char -- s) -- s)
+3928 : (s.&Char -- s)
+3931 : Num
+3933 : Char
+3934 : Char
+3935 : Char
+3936 : Char
+3937 : Char
+3938 : Char
+3939 : Char
+3940 : Char
+3941 : Char
+3942 : Char
+3943 : Char
+3944 : Char
+3945 : Char
+3946 : Char
+3947 : Char
+3948 : Char
+3949 : Char
+3950 : Char
+3951 : (s.&Char -- s)
+3954 : &Char
+3956 : (s.&Char.&Char -- s)
+3959 : (s.&Char -- s)
+3962 : (s -- s)
+3965 : Num
+3967 : Char
+3968 : Char
+3969 : Char
+3970 : Char
+3971 : (s -- s)
+3974 : &Char
+3976 : (s.&Char -- s)
+3979 : (s -- s)
+3982 : (s -- s)
+3985 : (s -- s)
+3988 : &(s2682 -- s2682)
+3990 : (s.&(s -- s) -- s)
+3993 : (s -- s)
+
 [ :: (s -- s)
 Loading tools
 x :: (s.Num.Num -- s)
@@ -150,6 +415,120 @@ mem :: (s -- s)
 ** TypeError: ../quarter-forth/f/tools.f:18.3 (compose) : elem: &Num ~ Num
 ** TypeError: ../quarter-forth/f/tools.f:18.3 (compose) : elem: &Num ~ Num
 ** TypeError: ../quarter-forth/f/tools.f:18.3 (compose) : elem: &c2752 ~ Num
+
+4138 : Char
+4139 : Char
+4140 : Char
+4141 : Char
+4142 : Char
+4143 : Entry
+4144 : (s -- s)
+4147 : Num
+4149 : Char
+4150 : Char
+4151 : Char
+4152 : Char
+4153 : Char
+4154 : Char
+4155 : Char
+4156 : Char
+4157 : Char
+4158 : Char
+4159 : Char
+4160 : Char
+4161 : Char
+4162 : (s -- s)
+4165 : &Char
+4167 : (s.&Char -- s)
+4170 : (s -- s)
+4173 : (s -- s)
+4176 : (s.Num -- s)
+4179 : Num
+4181 : Char
+4182 : Char
+4183 : Char
+4184 : Char
+4185 : Char
+4186 : Char
+4187 : Char
+4188 : Char
+4189 : Char
+4190 : Char
+4191 : Char
+4192 : Char
+4193 : Char
+4194 : (s.Num -- s)
+4197 : &Char
+4199 : (s.Num.&Char -- s)
+4202 : (s.Num -- s)
+4205 : (s -- s)
+4208 : (s -- s)
+4211 : (s.Num -- s)
+4214 : Num
+4216 : Char
+4217 : Char
+4218 : Char
+4219 : Char
+4220 : Char
+4221 : Char
+4222 : Char
+4223 : Char
+4224 : Char
+4225 : Char
+4226 : Char
+4227 : Char
+4228 : Char
+4229 : (s.Num -- s)
+4232 : &Char
+4234 : (s.Num.&Char -- s)
+4237 : (s.Num -- s)
+4240 : (s -- s)
+4243 : (s -- s)
+4246 : (s.Num -- s)
+4249 : Num
+4251 : Char
+4252 : Char
+4253 : Char
+4254 : Char
+4255 : Char
+4256 : Char
+4257 : Char
+4258 : Char
+4259 : Char
+4260 : Char
+4261 : Char
+4262 : Char
+4263 : Char
+4264 : (s.Num -- s)
+4267 : &Char
+4269 : (s.Num.&Char -- s)
+4272 : (s.Num -- s)
+4275 : (s -- s)
+4278 : (s -- s)
+4281 : (s.&Num -- s)
+4284 : (s.&Num.&Num -- s)
+4287 : (s.Num -- s)
+4290 : Num
+4292 : Char
+4293 : Char
+4294 : Char
+4295 : Char
+4296 : Char
+4297 : Char
+4298 : Char
+4299 : Char
+4300 : Char
+4301 : Char
+4302 : Char
+4303 : Char
+4304 : Char
+4305 : (s.Num -- s)
+4308 : &Char
+4310 : (s.Num.&Char -- s)
+4313 : (s.Num -- s)
+4316 : (s -- s)
+4319 : (s -- s)
+
 memv :: (s -- s)
 e8 :: (s -- s.Num)
 c3 :: (s -- s.Num)
@@ -159,16 +538,175 @@ is-ret :: (s.Num -- s.Num)
 ** TypeError: ../quarter-forth/f/tools.f:39.3 (compose) : contents: Num ~ (s2883 -- s2884)
 ** TypeError: ../quarter-forth/f/tools.f:39.3 (branch0) : contents: Num ~ Char
 ** TypeError: ../quarter-forth/f/tools.f:39.3 (compose) : contents: Num ~ Char
+
+4428 : Char
+4429 : Char
+4430 : Char
+4431 : Char
+4432 : Char
+4433 : Char
+4434 : Char
+4435 : Char
+4436 : Char
+4437 : Char
+4438 : Char
+4439 : Char
+4440 : Entry
+4441 : (s.&Num -- s)
+4444 : (s.&Num.&Char -- s)
+4447 : (s.&Num.Num -- s)
+4450 : (s.&Num.Num -- s)
+4453 : Num
+4455 : (s.&Num -- s)
+4458 : (s.&Num.&Num -- s)
+4461 : (s.&Num.&Num.Num -- s)
+4464 : (s.&Num.&Num -- s)
+4467 : (s.&Num.&(s1 -- s2) -- s)
+4470 : (s.&Num.&Char -- s)
+4473 : (s.&Num -- s)
+4476 : (s.&Num -- s)
+4479 : (s.&Num.Num -- s)
+4482 : (s.&Num -- s)
+4485 : &(s2939.&Num -- s2939)
+4487 : (s.&Num.&(s.&Num -- s) -- s)
+4490 : (s.&Char -- s)
+4493 : (s.&Char.&Char -- s)
+4496 : (s.&Char.Num -- s)
+4499 : (s.&Char.Num.Num -- s)
+4502 : (s.&Char.Num.Num -- s)
+4505 : Num
+4507 : (s.&Char.Num -- s)
+4510 : (s.&Char -- s)
+4513 : (s -- s)
+4516 : Num
+4518 : (s.Num -- s)
+4521 : (s -- s)
+4524 : (s.&Char.Num -- s)
+4527 : (s.&Char -- s)
+4530 : (s.&Char -- s)
+4533 : (s.&Char.Num -- s)
+4536 : (s.&Char -- s)
+4539 : &(s2939.&Char -- s2939)
+4541 : (s.&Char.&(s.&Char -- s) -- s)
+4544 : (s -- s)
+
 disassemble :: (s.&Num -- s)
 ** TypeError: ../quarter-forth/f/tools.f:56.3 (compose) : contents: (s2971 -- s2972) ~ Num
+
+4545 : Char
+4546 : Char
+4547 : Char
+4548 : Char
+4549 : Char
+4550 : Char
+4551 : Entry
+4552 : (s.&(s1 -- s2) -- s)
+4555 : Num
+4557 : Char
+4558 : Char
+4559 : Char
+4560 : (s.&(s1 -- s2) -- s)
+4563 : &Char
+4565 : (s.&(s1 -- s2).&Char -- s)
+4568 : (s.&(s1 -- s2) -- s)
+4571 : (s.&(s1 -- s2).&(s1 -- s2) -- s)
+4574 : (s.&(s1 -- s2).&Char -- s)
+4577 : (s.&(s1 -- s2) -- s)
+4580 : Num
+4582 : Char
+4583 : Char
+4584 : Char
+4585 : Char
+4586 : (s.&(s1 -- s2) -- s)
+4589 : &Char
+4591 : (s.&(s1 -- s2).&Char -- s)
+4594 : (s.&(s1 -- s2) -- s)
+4597 : (s.&(s1 -- s2).&Num -- s)
+4600 : (s.&(s1 -- s2) -- s)
+4603 : (s.Num -- s)
+4606 : Num
+4608 : (s -- s)
+4611 : Num
+4613 : Char
+4614 : Char
+4615 : Char
+4616 : Char
+4617 : Char
+4618 : Char
+4619 : Char
+4620 : Char
+4621 : Char
+4622 : Char
+4623 : Char
+4624 : (s -- s)
+4627 : &Char
+4629 : (s.&Char -- s)
+4632 : (s -- s)
+4635 : (s -- s)
+
 x-see :: (s.&(s1 -- s2) -- s)
 ** TypeError: ../quarter-forth/f/tools.f:63.3 (branch0) : stack cyclic: s3003.&(s3001 -- s3002) ~ s3003
+
+4636 : Char
+4637 : Char
+4638 : Char
+4639 : Char
+4640 : Entry
+4641 : (s -- s)
+4644 : (s.&Char -- s)
+4647 : (s.&(s1 -- s2) -- s)
+4650 : (s.&(s1 -- s2).&(s1 -- s2) -- s)
+4653 : Num
+4655 : (s.&(s1 -- s2) -- s)
+4658 : (s -- s)
+
 see :: (s -- s)
 ** TypeError: ../quarter-forth/f/tools.f:68.3 (compose) : elem: Num ~ &Num
 ** TypeError: ../quarter-forth/f/tools.f:68.3 (compose) : elem: &Num ~ Num
 ** TypeError: ../quarter-forth/f/tools.f:68.3 (compose) : elem: Num ~ &Num
+
+4659 : Char
+4660 : Char
+4661 : Char
+4662 : Char
+4663 : Char
+4664 : Char
+4665 : Char
+4666 : Char
+4667 : Char
+4668 : Char
+4669 : Char
+4670 : Char
+4671 : Entry
+4672 : (s.Num -- s)
+4675 : (s.Num.Num -- s)
+4678 : (s.&Num -- s)
+4681 : (s.&Num.Num -- s)
+4684 : (s.&Num.Num.Num -- s)
+4687 : (s.&Num.&Num -- s)
+4690 : (s.&Num.&Num.&Num -- s)
+4693 : (s.&Num.Num -- s)
+4696 : Num
+4698 : (s.&Num -- s)
+4701 : (s.&Num.&Num -- s)
+4704 : (s.&Num.Num -- s)
+4707 : (s.&Num -- s)
+4710 : &(s3042.&Num -- s3042)
+4712 : (s.&Num.&(s.&Num -- s) -- s)
+4715 : (s.&Num -- s)
+4718 : (s -- s)
+
 .s-continue :: (s.Num -- s)
 ** TypeError: ../quarter-forth/f/tools.f:77.3 (compose) : elem: &Num ~ Num
+
+4719 : Char
+4720 : Char
+4721 : Char
+4722 : Entry
+4723 : (s -- s)
+4726 : (s.Num -- s)
+4729 : (s -- s)
+
 .s :: (s -- s)
 depth :: (s -- s.Num)
 rdepth :: (s -- s.Num)
@@ -178,11 +716,105 @@ old-key :: (s -- s.&(s1 -- s1.Num))
 raw-key :: (s -- s.Num)
 is-escape :: (s.Num -- s.Num)
 ** TypeError: ../quarter-forth/f/tools.f:113.3 (compose) : elem cyclic: x3160 ~ &(s3159.x3160.x3161 -- s3198.x3188.x3185)
+
+4950 : Char
+4951 : Char
+4952 : Char
+4953 : Char
+4954 : Char
+4955 : Char
+4956 : Char
+4957 : Char
+4958 : Char
+4959 : Char
+4960 : Char
+4961 : Char
+4962 : Char
+4963 : Entry
+4964 : (s.x2.x3 -- s1)
+4967 : (s.x2.x3.&(s.x2.x3 -- s1.x4.x5) -- s1)
+4970 : (s.x1.x2 -- s)
+4973 : (s.x1.x2 -- s)
+4976 : Num
+4978 : Char
+4979 : Char
+4980 : Char
+4981 : Char
+4982 : Char
+4983 : Char
+4984 : Char
+4985 : Char
+4986 : Char
+4987 : Char
+4988 : Char
+4989 : Char
+4990 : Char
+4991 : Char
+4992 : Char
+4993 : Char
+4994 : Char
+4995 : Char
+4996 : Char
+4997 : Char
+4998 : Char
+4999 : Char
+5000 : Char
+5001 : Char
+5002 : Char
+5003 : Char
+5004 : Char
+5005 : Char
+5006 : Char
+5007 : Char
+5008 : Char
+5009 : Char
+5010 : (s.x1.x2 -- s)
+5013 : &Char
+5015 : (s.x1.x2.&Char -- s)
+5018 : (s.x1.x2 -- s)
+5021 : (s.x1.x2 -- s)
+5024 : (s.x1.x2.Num -- s)
+5027 : (s.x1.x2.Num -- s)
+5030 : Num
+5032 : (s.x1.x2 -- s)
+5035 : (s.x1 -- s)
+5038 : (s -- s)
+5041 : (s.x1.x2 -- s)
+5044 : (s.x1.x2 -- s)
+5047 : &(s3198.x3188.x3185 -- s3198)
+5049 : (s.x1.x2.&(s.x1.x2 -- s) -- s)
+5052 : (s -- s)
+
 pag-continue :: (s.x2.x3 -- s1)
 pag :: (s.x2.x3 -- s1)
 is-printable? :: (s.Num -- s.Num)
 emit-printable-or-dot :: (s.Num -- s)
 ** TypeError: ../quarter-forth/f/tools.f:130.3 (branch0) : stack cyclic: s3261.x3260 ~ s3261
+
+5158 : Char
+5159 : Char
+5160 : Char
+5161 : Char
+5162 : Char
+5163 : Char
+5164 : Char
+5165 : Char
+5166 : Char
+5167 : Char
+5168 : Char
+5169 : Char
+5170 : Char
+5171 : Char
+5172 : Char
+5173 : Char
+5174 : Char
+5175 : Entry
+5176 : (s.x1 -- s)
+5179 : (s.x1.x1 -- s)
+5182 : Num
+5184 : (s.x1 -- s)
+5187 : (s -- s)
+
 drop-if-not-zero :: (s.x1 -- s)
 default-0 :: (s -- s)
 dc :: (s.&Char -- s.&Char)
@@ -331,13 +963,131 @@ ok :: (s -- s)
 ** TypeError: ../quarter-forth/f/buffer.f:30.3 (compose) : elem: Num ~ &c5499
 ** TypeError: ../quarter-forth/f/buffer.f:30.3 (branch0) : elem: Num ~ &c5558
 ** TypeError: ../quarter-forth/f/buffer.f:30.3 (compose) : elem: Num ~ &Char
+
+9957 : Char
+9958 : Char
+9959 : Char
+9960 : Char
+9961 : Char
+9962 : Char
+9963 : Char
+9964 : Char
+9965 : Char
+9966 : Char
+9967 : Entry
+9968 : (s.Num -- s.Num)
+9971 : (s.Num.Num -- s.Num)
+9974 : (s.Num.Num.&Char -- s.Num)
+9977 : (s.Num.Num.&Char.Num -- s.Num)
+9980 : (s.Num.Num.Num.&Char -- s.Num)
+9983 : (s.Num.Num -- s.Num)
+9986 : (s.Num.Num.Num -- s.Num)
+9989 : (s.Num.Num.Num -- s.Num)
+9992 : Num
+9994 : (s.Num.Num -- s.Num)
+9997 : (s.Num -- s.Num)
+10000 : (s.Num.Num -- s.Num)
+10003 : (s.Num -- s.Num)
+10006 : (s.Num.Num -- s.Num)
+10009 : (s.Num.Num.Num -- s.Num)
+10012 : (s.Num.Num.Num -- s.Num)
+10015 : Num
+10017 : (s.Num.Num -- s.Num)
+10020 : (s.Num.Num.&c1 -- s.Num)
+10023 : (s.Num.Num.Num -- s.Num)
+10026 : Num
+10028 : (s.Num.Num -- s.Num)
+10031 : (s.Num -- s.Num)
+10034 : &(s5579.Num -- s5579.Num)
+10036 : (s.Num.&(s.Num -- s.Num) -- s.Num)
+10039 : (s.Num.Num -- s.Num)
+10042 : (s.Num.Num.Num -- s.Num)
+10045 : (s.Num.Num -- s.Num)
+10048 : (s.Num.Num -- s.Num)
+10051 : (s.Num -- s.Num)
+10054 : (s.Num.Num -- s.Num)
+10057 : (s.Num -- s.Num)
+10060 : &(s5579.Num -- s5579.Num)
+10062 : (s.Num.&(s.Num -- s.Num) -- s.Num)
+10065 : (s.&c1.Num -- s.Num)
+10068 : (s.&c1.Num.Num -- s.Num)
+10071 : (s.&c1.Num.Num -- s.Num)
+10074 : (s.&c1.Num.Num -- s.Num)
+10077 : Num
+10079 : (s.&c1.Num -- s.Num)
+10082 : (s.&c1 -- s.Num)
+10085 : &(s5579.&c5558 -- s5579.Num)
+10087 : (s.&c1.&(s.&c1 -- s.Num) -- s.Num)
+10090 : (s.&c1.Num -- s.Num)
+10093 : (s.&c1.Num.&c1 -- s.Num)
+10096 : (s.&c1.Num.Num -- s.Num)
+10099 : (s.&c1.Num.Num -- s.Num)
+10102 : Num
+10104 : (s.&c1.Num -- s.Num)
+10107 : (s.&c1 -- s.Num)
+10110 : &(s5579.&c5558 -- s5579.Num)
+10112 : (s.&c1.&(s.&c1 -- s.Num) -- s.Num)
+10115 : (s.&c1.Num -- s.Num)
+10118 : (s.&c1 -- s.Num)
+10121 : (s.&c1.Num -- s.Num)
+10124 : (s.&c1 -- s.Num)
+10127 : &(s5579.&c5558 -- s5579.Num)
+10129 : (s.&c1.&(s.&c1 -- s.Num) -- s.Num)
+10132 : (s -- s)
+
 fill-loop :: (s.Num -- s.Num)
 ** TypeError: ../quarter-forth/f/buffer.f:54.3 (compose) : elem: Num ~ &Char
 ** TypeError: ../quarter-forth/f/buffer.f:54.3 (compose) : elem: &c5592 ~ Num
+
+10133 : Char
+10134 : Char
+10135 : Char
+10136 : Char
+10137 : Char
+10138 : Entry
+10139 : (s -- s)
+10142 : (s -- s)
+10145 : (s.Num -- s)
+10148 : (s.&Char -- s)
+10151 : (s.&Char.Num -- s)
+10154 : (s.Num.&Char -- s)
+10157 : (s -- s)
+
 fill :: (s -- s)
 kb-pointer :: (s -- s.&c1)
 reset-kb-pointer :: (s -- s)
 ** TypeError: ../quarter-forth/f/buffer.f:65.3 (branch0) : stack cyclic: s5651.x5644 ~ s5651
+
+10206 : Char
+10207 : Char
+10208 : Char
+10209 : Char
+10210 : Char
+10211 : Char
+10212 : Char
+10213 : Char
+10214 : Char
+10215 : Char
+10216 : Char
+10217 : Char
+10218 : Char
+10219 : Entry
+10220 : (s -- s.Num)
+10223 : (s.&&Char -- s.Num)
+10226 : (s.&Char -- s.Num)
+10229 : (s.Num -- s.Num)
+10232 : (s.Num.Num -- s.Num)
+10235 : Num
+10237 : (s.Num -- s.Num)
+10240 : (s.Num.Num -- s.Num)
+10243 : (s.Num.Num.&Num -- s.Num)
+10246 : (s.Num -- s.Num)
+10249 : (s.Num -- s)
+10252 : (s -- s)
+10255 : (s -- s)
+10258 : (s -- s)
+10261 : (s -- s)
+
 buffered-key :: (s -- s.Num)
 **{SetKey}
 
@@ -346,6 +1096,25 @@ Welcome to Quarter Forth. A 16-bit Forth system running on x86.
 Bytes available: 55196 
 
 ** TypeError: ../quarter-forth/f/start.f:9.3 (compose) : contents: Num ~ Char
+
+10340 : Char
+10341 : Char
+10342 : Char
+10343 : Char
+10344 : Char
+10345 : Entry
+10346 : (s.&Char -- s)
+10349 : &(s5665 -- s5666)
+10351 : (s.&Char.&(s1 -- s2) -- s)
+10354 : (s.&Char -- s)
+10357 : (s.&Char.&Char -- s)
+10360 : (s.&Char.&Char.&Char -- s)
+10363 : (s.&Char.Num -- s)
+10366 : (s.&Char.Num.Num -- s)
+10369 : (s.&Char.Num -- s)
+10372 : (s -- s)
+10375 : (s -- s)
+
 wipe :: (s.&Char -- s)
 **{StartupIsComplete}
 #machine-ticks=8799265
