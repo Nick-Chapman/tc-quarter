@@ -1,11 +1,12 @@
 
 module Infer
   ( Infer(..)
-  , runInfer
+  , runInfer, reasonToInfer
   , TypeError(..)
   , Subst
   , instantiateScheme, canonicalizeScheme
   , subTrans, subStack, subElem, subContents
+  , freshStack, freshElem, freshContents
   )
   where
 
@@ -27,6 +28,18 @@ import Types
   )
 
 import Execution (Loc)
+
+----------------------------------------------------------------------
+-- fresh
+
+freshStack :: Infer Stack
+freshStack = S_Var <$> FreshS
+
+freshElem :: Infer Elem
+freshElem = E_Var <$> FreshE
+
+freshContents :: Infer Contents
+freshContents = C_Var <$> FreshC
 
 ----------------------------------------------------------------------
 -- instantiateScheme, canonicalizeScheme
@@ -71,6 +84,9 @@ data Infer a where
   Context :: String -> Infer a -> Infer a
 
 type InfRes a = IO ([TypeError],a)
+
+reasonToInfer :: String -> Infer a -> Infer a
+reasonToInfer = Context
 
 runInfer :: Loc -> Int -> Infer a -> InfRes (Int,Subst,a) -- TODO: be more principled!
 runInfer loc u0 inf0 = loop (state0 u0) inf0 k0

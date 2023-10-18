@@ -75,6 +75,7 @@ typeOfPrim = \case
   WriteCharCol -> (s ~ num ~ num) ~~> s
   Cls -> s ~~> s
   KEY -> s ~~> (s ~ num)
+  Exit -> s ~~> s
 
   -- TODO: unimplemented
   Kdx_K -> undefined
@@ -82,7 +83,6 @@ typeOfPrim = \case
   Kdx_X -> undefined
   SetTabEntry -> undefined
   Nop -> undefined
-  Exit -> undefined -- never get here?
   GetKey -> undefined
   StartupIsComplete -> undefined
   SetKey -> undefined

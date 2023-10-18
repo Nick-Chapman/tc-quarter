@@ -4,9 +4,9 @@ module Testing (test,run,Testing,TestCase(..),Expect(..)) where
 import Control.Monad (ap,liftM)
 import Data.List (isInfixOf)
 import Execution (Interaction(..),Loc(..))
-import Infer (runInfer,canonicalizeScheme,subTrans)
+import Infer (canonicalizeScheme)
 import Text.Printf (printf)
-import TypeChecking (tcStart)
+import TypeChecking (tcTestQuarterDef)
 import Types (Scheme,makeScheme)
 import qualified Execution as X (interaction,State)
 
@@ -51,18 +51,7 @@ runTest n (Test (TestCase{setup,code}) x) = do
       printf "(%d) %s (execution failed)\nerr: %s\n" n code err
       pure False
     Right m -> do
-      let loc = Loc "test" n 0
-      let u0 = 0
-      (errs,res) <- runInfer loc u0 (tcStart m 'z')
-      let (_u,subst,ty0) = res
-      let
-        actual =
-          case errs of
-            err:_ -> Left err
-            [] -> do
-              let ty1 = subTrans subst ty0
-              Right (canonicalizeScheme (makeScheme ty1))
-
+      actual <- tcTestQuarterDef n m 'z'
       case (x,actual) of
         (ExpectError{frag}, Left err) -> do
           if frag `isInfixOf` (show err) then pure True else do
