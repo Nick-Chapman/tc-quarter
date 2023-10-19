@@ -132,13 +132,10 @@ dot-loop :: (s.Num -- s)
 . :: (s.Num -- s)
 ? :: (s.&Num -- s)
 s= :: (s.&Char.&Char -- s.Num)
-** TypeError: ../quarter-forth/f/forth.f:422.14 (compose) : stack mismatch: S? ~ S?
-** TypeError: ../quarter-forth/f/forth.f:422.14 (compose) : stack mismatch: S? ~ S?
 find-loop :: (s.&Char.&(s1 -- s2) -- s.&(s1 -- s2))
 find :: (s.&Char -- s.&(S? -- S?))
 find! :: (s.&Char -- s.&(S? -- S?))
 ' :: (s -- s.&(S? -- S?))
-** TypeError: ../quarter-forth/f/forth.f:440.9 (compose) : stack mismatch: S? ~ S?
 compiling :: (S? -- S?)
 : :: (S? -- S?)
 ** TypeError: ../quarter-forth/f/forth.f:452.9 (compose) : stack mismatch: S? ~ S?.Num
@@ -191,8 +188,6 @@ db :: (s.&Char -- s.&Char)
 xxd-line :: (s.Num -- s.Num)
 xxd-page :: (s -- s)
 xxd :: (s.x2 -- s1)
-** TypeError: ../quarter-forth/f/tools.f:158.0 (branch0) : stack mismatch: S? ~ S?
-** TypeError: ../quarter-forth/f/tools.f:158.0 (branch0) : stack mismatch: S? ~ S?
 see1 :: (s.&(S? -- S?) -- s.&(S? -- S?))
 see10 :: (s -- s)
 see-all :: (s -- s1)
@@ -343,4 +338,4 @@ Bytes available: 55279
 wipe :: (s.&Char -- s)
 **{StartupIsComplete}
 #machine-ticks=8445241
-#errors=19
+#errors=14

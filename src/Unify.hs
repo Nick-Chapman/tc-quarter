@@ -58,9 +58,10 @@ unifyStack s1x s2x = do
       unifyStack s1 s2
       unifyElem e1 e2
 
+    (S_Unknown, S_Unknown) -> pure ()
+
     (S_Cons{}, _) -> nope
     (_, S_Cons{}) -> nope
-    (S_Unknown, S_Unknown) -> nope
 
 
 unifyElem :: Elem -> Elem -> Infer ()
@@ -83,14 +84,13 @@ unifyElem e1x e2x = do
 
     (E_Number, E_Number) -> pure ()
     (E_Address c1, E_Address c2) -> unifyContents c1 c2
+    (E_Unknown, E_Unknown) -> pure ()
 
     (E_Number{}, _) -> nope
     (_, E_Number{}) -> nope
 
     (E_Address{}, _) -> nope
     (_, E_Address{}) -> nope
-
-    (E_Unknown, E_Unknown) -> nope
 
 
 unifyContents :: Contents -> Contents -> Infer ()
