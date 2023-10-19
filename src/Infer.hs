@@ -93,7 +93,7 @@ runInfer loc u0 inf0 = loop (state0 u0 loc) inf0 k0
   where
     k0 :: a -> State -> InfRes (Int,Subst,a)
     k0 a State{subst,u,errs} = do
-      pure (reverse errs,(u,subst,a))
+      pure (errs,(u,subst,a))
 
     loop :: State -> Infer a -> (a -> State -> InfRes b) -> InfRes b
     loop s inf k = case inf of

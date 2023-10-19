@@ -147,26 +147,26 @@ compiling :: (s -- s)
 Loading tools
 x :: (s.Num.Num -- s)
 mem :: (s -- s)
-** TypeError: ../quarter-forth/f/tools.f:22.4 (compose) : elem: &Num ~ Num
-** TypeError: ../quarter-forth/f/tools.f:21.3 (compose) : elem: &Num ~ Num
 ** TypeError: ../quarter-forth/f/tools.f:20.5 (compose) : elem: &c2752 ~ Num
+** TypeError: ../quarter-forth/f/tools.f:21.3 (compose) : elem: &Num ~ Num
+** TypeError: ../quarter-forth/f/tools.f:22.4 (compose) : elem: &Num ~ Num
 memv :: (s -- s)
 e8 :: (s -- s.Num)
 c3 :: (s -- s.Num)
 is-call :: (s.Num -- s.Num)
 is-ret :: (s.Num -- s.Num)
 @rel->abs :: (s.&Num -- s.&Num)
-** TypeError: ../quarter-forth/f/tools.f:41.20 (compose) : contents: Num ~ (s2883 -- s2884)
-** TypeError: ../quarter-forth/f/tools.f:40.18 (branch0) : contents: Num ~ Char
 ** TypeError: ../quarter-forth/f/tools.f:40.4 (compose) : contents: Num ~ Char
+** TypeError: ../quarter-forth/f/tools.f:40.18 (branch0) : contents: Num ~ Char
+** TypeError: ../quarter-forth/f/tools.f:41.20 (compose) : contents: Num ~ (s2883 -- s2884)
 disassemble :: (s.&Num -- s)
 ** TypeError: ../quarter-forth/f/tools.f:58.4 (compose) : contents: (s2971 -- s2972) ~ Num
 x-see :: (s.&(s1 -- s2) -- s)
 ** TypeError: ../quarter-forth/f/tools.f:64.18 (branch0) : stack cyclic: s3003.&(s3001 -- s3002) ~ s3003
 see :: (s -- s)
-** TypeError: ../quarter-forth/f/tools.f:70.8 (compose) : elem: Num ~ &Num
-** TypeError: ../quarter-forth/f/tools.f:70.4 (compose) : elem: &Num ~ Num
 ** TypeError: ../quarter-forth/f/tools.f:70.0 (compose) : elem: Num ~ &Num
+** TypeError: ../quarter-forth/f/tools.f:70.4 (compose) : elem: &Num ~ Num
+** TypeError: ../quarter-forth/f/tools.f:70.8 (compose) : elem: Num ~ &Num
 .s-continue :: (s.Num -- s)
 ** TypeError: ../quarter-forth/f/tools.f:78.4 (compose) : elem: &Num ~ Num
 .s :: (s -- s)
@@ -328,12 +328,12 @@ echo-on :: (s -- s)
 echo-off :: (s -- s)
 echo :: (s.Num -- s)
 ok :: (s -- s)
-** TypeError: ../quarter-forth/f/buffer.f:40.5 (compose) : elem: Num ~ &c5499
-** TypeError: ../quarter-forth/f/buffer.f:38.33 (branch0) : elem: Num ~ &c5558
 ** TypeError: ../quarter-forth/f/buffer.f:32.5 (compose) : elem: Num ~ &Char
+** TypeError: ../quarter-forth/f/buffer.f:38.33 (branch0) : elem: Num ~ &c5558
+** TypeError: ../quarter-forth/f/buffer.f:40.5 (compose) : elem: Num ~ &c5499
 fill-loop :: (s.Num -- s.Num)
-** TypeError: ../quarter-forth/f/buffer.f:58.0 (compose) : elem: Num ~ &Char
 ** TypeError: ../quarter-forth/f/buffer.f:57.11 (compose) : elem: &c5592 ~ Num
+** TypeError: ../quarter-forth/f/buffer.f:58.0 (compose) : elem: Num ~ &Char
 fill :: (s -- s)
 kb-pointer :: (s -- s.&c1)
 reset-kb-pointer :: (s -- s)
