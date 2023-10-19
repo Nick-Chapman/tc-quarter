@@ -7,7 +7,7 @@ import Prim (Prim(..))
 
 import Types
   ( Trans
-  , (~~>), (~), xt, num, addr, addr_cell, char, mkSVar, mkEVar, mkCVar, unknownS
+  , (~~>), (~), xt, num, addr, addr_cell, char, mkSVar, mkEVar, mkCVar, unknownS, unknownE
   )
 
 typeOfPrim :: Prim -> Trans
@@ -37,7 +37,7 @@ typeOfPrim = \case
   Key -> s ~~> (s ~ num)
   Latest -> s ~~> (s ~ xt (unknownS ~~> unknownS))
   LessThan -> (s ~ x1 ~ x1) ~~> (s ~ num)
-  Lit -> s ~~> (s ~ x1) -- TODO: x1 should be skolem
+  Lit -> s ~~> (s ~ unknownE)
   Minus -> (s ~ x1 ~ x1) ~~> (s ~ num)
   One -> s ~~> (s ~ num)
   Over -> (s ~ x1 ~ x2) ~~> (s ~ x1 ~ x2 ~ x1)
@@ -87,7 +87,7 @@ typeOfPrim = \case
 
   where
 
-    -- It doesn't matter what these numbers are, so long asthey are all different
+    -- It doesn't matter what these numbers are, so long as they are all different.
     s = mkSVar 101
     s2 = mkSVar 102
     s3 = mkSVar 103

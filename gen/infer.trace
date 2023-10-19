@@ -123,7 +123,7 @@ base :: (s -- s.Num)
 number-loop :: (s.Num.&Char -- s.Num.Num)
 number? :: (s.&Char -- s.Num.Num)
 print-digit :: (s.Num -- s)
-** TypeError: ../quarter-forth/f/forth.f:381.10 (branch0) : stack cyclic: s2104 ~ s2104.Num
+** TypeError: ../quarter-forth/f/forth.f:381.10 (branch0) : stack cyclic: s2097 ~ s2097.Num
 dot-loop :: (s.Num -- s)
 .decimal :: (s.Num -- s)
 .hex1 :: (s.Num -- s)
@@ -152,11 +152,11 @@ is-ret :: (s.Num -- s.Num)
 @rel->abs :: (s.&Num -- s.&Num)
 ** TypeError: ../quarter-forth/f/tools.f:40.4 (compose) : contents: Num ~ Char
 ** TypeError: ../quarter-forth/f/tools.f:40.18 (branch0) : contents: Num ~ Char
-** TypeError: ../quarter-forth/f/tools.f:41.20 (compose) : contents: Num ~ (s2837 -- s2838)
+** TypeError: ../quarter-forth/f/tools.f:41.20 (compose) : contents: Num ~ (s2829 -- s2830)
 disassemble :: (s.&Num -- s)
-** TypeError: ../quarter-forth/f/tools.f:58.4 (compose) : contents: (s2925 -- s2926) ~ Num
+** TypeError: ../quarter-forth/f/tools.f:58.4 (compose) : contents: (s2917 -- s2918) ~ Num
 x-see :: (s.&(s1 -- s2) -- s)
-** TypeError: ../quarter-forth/f/tools.f:64.18 (branch0) : stack cyclic: s2955.&(s2953 -- s2954) ~ s2955
+** TypeError: ../quarter-forth/f/tools.f:64.18 (branch0) : stack cyclic: s2947.&(s2945 -- s2946) ~ s2947
 see :: (s -- s)
 ** TypeError: ../quarter-forth/f/tools.f:70.0 (compose) : elem: Num ~ &Num
 ** TypeError: ../quarter-forth/f/tools.f:70.4 (compose) : elem: &Num ~ Num
@@ -171,12 +171,12 @@ times :: (s.&(s -- s1).x2 -- s)
 old-key :: (s -- s.&(s1 -- s1.Num))
 raw-key :: (s -- s.Num)
 is-escape :: (s.Num -- s.Num)
-** TypeError: ../quarter-forth/f/tools.f:114.5 (compose) : elem cyclic: x3112 ~ &(s3111.x3112.x3113 -- s3150.x3140.x3137)
+** TypeError: ../quarter-forth/f/tools.f:114.5 (compose) : elem cyclic: x3104 ~ &(s3103.x3104.x3105 -- s3142.x3132.x3129)
 pag-continue :: (s.x2.x3 -- s1)
 pag :: (s.x2.x3 -- s1)
 is-printable? :: (s.Num -- s.Num)
 emit-printable-or-dot :: (s.Num -- s)
-** TypeError: ../quarter-forth/f/tools.f:131.7 (branch0) : stack cyclic: s3213.x3212 ~ s3213
+** TypeError: ../quarter-forth/f/tools.f:131.7 (branch0) : stack cyclic: s3205.x3204 ~ s3205
 drop-if-not-zero :: (s.x1 -- s)
 default-0 :: (s -- s)
 dc :: (s.&Char -- s.&Char)
@@ -329,7 +329,7 @@ fill-loop :: (s.&Char -- s.&Char)
 fill :: (s -- s)
 kb-pointer :: (s -- s.&c1)
 reset-kb-pointer :: (s -- s)
-** TypeError: ../quarter-forth/f/buffer.f:70.7 (branch0) : stack cyclic: s5608.x5601 ~ s5608
+** TypeError: ../quarter-forth/f/buffer.f:70.7 (branch0) : stack cyclic: s5600.x5593 ~ s5600
 buffered-key :: (s -- s.Num)
 **{SetKey}
 

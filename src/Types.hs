@@ -11,7 +11,7 @@ module Types
   , CVar(..), cvarsOfContents
   -- convenience constructors
   , (~~>), (~), xt, num, addr, addr_cell, char, mkSVar, mkEVar, mkCVar
-  , unknownS
+  , unknownS, unknownE
   ) where
 
 import Text.Printf (printf)
@@ -49,6 +49,7 @@ data Stack
 data Elem
   = E_Number
   | E_Address Contents
+  | E_Unknown
   | E_Var EVar -- (e1,e2,...)
 
 -- Type of the contents of an address
@@ -109,6 +110,9 @@ mkCVar = C_Var . CVar
 unknownS :: Stack
 unknownS = S_Unknown
 
+unknownE :: Elem
+unknownE = E_Unknown
+
 ----------------------------------------------------------------------
 -- Show
 
@@ -137,6 +141,7 @@ instance Show Elem where
   show = \case
     E_Number -> "Num"
     E_Address c -> printf "&%s" (show c)
+    E_Unknown -> "X?"
     E_Var v -> show v
 
 instance Show Contents where
@@ -178,6 +183,7 @@ svarsOfElem :: Elem -> [SVar]
 svarsOfElem = \case
   E_Number -> []
   E_Address c -> svarsOfContents c
+  E_Unknown -> []
   E_Var{} -> []
 
 svarsOfContents :: Contents -> [SVar]
@@ -208,6 +214,7 @@ evarsOfElem :: Elem -> [EVar]
 evarsOfElem = \case
   E_Number -> []
   E_Address c -> evarsOfContents c
+  E_Unknown -> []
   E_Var x -> [x] -- collect here
 
 evarsOfContents :: Contents -> [EVar]
@@ -238,6 +245,7 @@ cvarsOfElem :: Elem -> [CVar]
 cvarsOfElem = \case
   E_Number -> []
   E_Address c -> cvarsOfContents c
+  E_Unknown -> []
   E_Var{} -> []
 
 cvarsOfContents :: Contents -> [CVar]

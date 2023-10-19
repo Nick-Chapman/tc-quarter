@@ -168,17 +168,18 @@ subStack sub = loop
     loop = \case
       S_Cons s v ->
         S_Cons (loop s) (subElem sub v)
+      S_Unknown -> S_Unknown
       stack@(S_Var var) ->
         case applySubstS sub var of
           Nothing -> stack
           Just replacement -> replacement
-      stack@S_Unknown ->
-        stack
+
 
 subElem :: Subst -> Elem -> Elem
 subElem sub = \case
   E_Number -> E_Number
   E_Address c -> E_Address (subContents sub c)
+  E_Unknown -> E_Unknown
   elem@(E_Var var) ->
     case applySubstE sub var of
       Nothing -> elem
