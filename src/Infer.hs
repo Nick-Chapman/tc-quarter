@@ -81,15 +81,15 @@ data Infer a where
   FreshS :: Infer SVar -- TODO: combine 3x Fresh ops
   FreshE :: Infer EVar
   FreshC :: Infer CVar
-  Context :: String -> Infer a -> Infer a
+  Reason :: Loc -> String -> Infer a -> Infer a
 
 type InfRes a = IO ([TypeError],a)
 
-reasonToInfer :: String -> Infer a -> Infer a
-reasonToInfer = Context
+reasonToInfer :: Loc -> String -> Infer a -> Infer a
+reasonToInfer = Reason
 
 runInfer :: Loc -> Int -> Infer a -> InfRes (Int,Subst,a) -- TODO: be more principled!
-runInfer loc u0 inf0 = loop (state0 u0) inf0 k0
+runInfer loc u0 inf0 = loop (state0 u0 loc) inf0 k0
   where
     k0 :: a -> State -> InfRes (Int,Subst,a)
     k0 a State{subst,u,errs} = do
@@ -117,8 +117,8 @@ runInfer loc u0 inf0 = loop (state0 u0) inf0 k0
         subst' <- extendSubstContents subst v c
         k () s { subst = subst' }
       Nope message -> do
-        let State{errs,context} = s
-        let err = TypeError { loc, why = context, message }
+        let State{errs,reason=(loc,why)} = s
+        let err = TypeError {loc,why,message}
         k () s { errs = err : errs }
       CurrentSub -> do
         let State{subst} = s
@@ -135,18 +135,18 @@ runInfer loc u0 inf0 = loop (state0 u0) inf0 k0
         let State{u} = s
         let x = CVar u
         k x s { u = u + 1 }
-      Context why m -> do
-        loop s { context = why } m k
+      Reason loc why m -> do
+        loop s { reason = (loc,why) } m k
 
 data State = State
   { subst :: Subst
   , u :: Int
   , errs :: [TypeError]
-  , context :: String -- why do we unify?
+  , reason :: (Loc,String)
   }
 
-state0 :: Int -> State
-state0 u = State { subst = subst0, u, errs = [], context = "top" }
+state0 :: Int -> Loc -> State
+state0 u loc = State { subst = subst0, u, errs = [], reason = (loc,"top") }
 
 ----------------------------------------------------------------------
 -- sub*
@@ -257,7 +257,7 @@ extendSubstContents Subst{s,e,c} key replacement = do
 
 data TypeError = TypeError
   { loc :: Loc
-  , why :: String -- why are we unifying?
+  , why :: String
   , message :: String
   }
 

@@ -207,7 +207,8 @@ tcSlot context te a0 slot = do
           (ts2,te2) <- tcAddr context te1 a2 -- TODO: use shadowing for te
           case ts2 of
             SL_Trans trans2 -> do
-              trans <- composeTrans trans1 trans2
+              let loc = lookupAddrLocation context a0
+              trans <- composeTrans loc trans1 trans2
               pure (SL_Trans trans,te2)
             _ -> do
               error (printf "fallthrough to non-code at address: %s" (show a2))
@@ -216,20 +217,21 @@ tcSlot context te a0 slot = do
           (ts3,te3) <- tcAddr context te2 a3
           case (ts2,ts3) of
             (SL_Trans trans2, SL_Trans trans3) -> do
-              reasonToInfer "branch0" $ do
+              let loc = lookupAddrLocation context a0
+              reasonToInfer loc "branch0" $ do
               unifyTrans trans2 trans3
-              trans <- composeTrans trans1 trans2
+              trans <- composeTrans loc trans1 trans2
               pure (SL_Trans trans,te3)
             (SL_Trans{},_) -> do
               error (printf "branch to non-code at address: %s" (show a3))
             (_,_) -> do
               error (printf "fallthrough to non-code at address: %s" (show a2))
 
-composeTrans :: Trans -> Trans -> Infer Trans
-composeTrans e1 e2 = do
+composeTrans :: Loc -> Trans -> Trans -> Infer Trans
+composeTrans loc e1 e2 = do
   case (e1,e2) of
     (T_Trans m1 m2, T_Trans m3 m4) -> do
-      reasonToInfer "compose" $ do
+      reasonToInfer loc "compose" $ do
       unifyMachine m2 m3
       pure (T_Trans m1 m4)
 
