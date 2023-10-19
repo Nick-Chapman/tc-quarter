@@ -8,6 +8,9 @@ import Tests (run)
 import Text.Printf (printf)
 import TypeChecking (tc,Tenv(..),tenv0,lookupTenv)
 import qualified Execution as X (interaction,State(..))
+import System.Environment (getArgs)
+import Data.List.Extra (trim)
+import System.FilePath (takeDirectory)
 
 main :: IO ()
 main = do
@@ -17,25 +20,30 @@ main = do
 _main :: IO ()
 _main = do
   putStrLn "*tc-quarter*"
-  inp <- inputFiles
-    [ "../quarter-forth/f/" ++ f
-    | f <-
-        -- TODO: read this from ../quarter-forth/full.list
-        [ "quarter.q"
-        , "forth.f"
-        , "tools.f"
-        , "regression.f"
-        , "examples.f"
-        , "primes.f"
-        , "snake.f"
-        , "buffer.f"
-        , "start.f"
-        ]
-    ]
-  go inp
+  args <- getArgs
+  config <- parseCommandLine args
+  let Config{listFile} = config
+  files <- readListFile listFile
+  inp <- inputFiles files
+  runInteraction inp X.interaction
 
-go :: Input -> IO ()
-go s = runInteraction s X.interaction
+data Config = Config { listFile :: FilePath }
+
+parseCommandLine :: [String] -> IO Config
+parseCommandLine = \case
+  [listFile] -> pure $ Config { listFile }
+  args -> error (show ("parseCommandLine",args))
+
+readListFile :: FilePath -> IO [FilePath]
+readListFile path = do
+  let dir = takeDirectory path
+  s <- readFile path
+  pure
+    [ dir ++ "/" ++ filename
+    | line <- lines s
+    , let filename = trim (takeWhile (not . (== '#')) line)
+    , filename /= ""
+    ]
 
 runInteraction :: Input -> Interaction -> IO ()
 runInteraction = loop tenv0

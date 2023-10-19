@@ -82,7 +82,7 @@ typeOfPrim = \case
   SetTabEntry -> undefined
   Nop -> undefined
   GetKey -> undefined
-  StartupIsComplete -> undefined
+  StartupIsComplete -> undefined -- TODO: needed by bf.list
   SetKey -> undefined
 
   where

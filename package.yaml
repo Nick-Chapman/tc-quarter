@@ -19,6 +19,7 @@ dependencies:
 - containers
 - containers
 - extra
+- filepath
 - haskeline
 - mtl
 - split
