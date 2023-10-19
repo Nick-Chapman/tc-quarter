@@ -60,9 +60,7 @@ unifyStack s1x s2x = do
 
     (S_Cons{}, _) -> nope
     (_, S_Cons{}) -> nope
-    (S_Skolem x1, S_Skolem x2) ->
-      -- TODO: can we regard a skolem as not even the same as itself?
-      if (x1 == x2) then pure () else nope
+    (S_Unknown, S_Unknown) -> nope
 
 
 unifyElem :: Elem -> Elem -> Infer ()

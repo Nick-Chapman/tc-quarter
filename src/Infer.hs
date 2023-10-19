@@ -172,7 +172,7 @@ subStack sub = loop
         case applySubstS sub var of
           Nothing -> stack
           Just replacement -> replacement
-      stack@S_Skolem{} ->
+      stack@S_Unknown ->
         stack
 
 subElem :: Subst -> Elem -> Elem

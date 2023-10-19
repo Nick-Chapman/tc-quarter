@@ -7,7 +7,7 @@ import Prim (Prim(..))
 
 import Types
   ( Trans
-  , (~~>), (~), xt, num, addr, addr_cell, char, mkSVar, mkEVar, mkCVar, skolem
+  , (~~>), (~), xt, num, addr, addr_cell, char, mkSVar, mkEVar, mkCVar, unknownS
   )
 
 typeOfPrim :: Prim -> Trans
@@ -23,22 +23,19 @@ typeOfPrim = \case
   Comma -> s ~ x1 ~~> s
   CompileComma -> (s ~ xt (s2 ~~> s3)) ~~> s
   CrashOnlyDuringStartup -> (s ~~> s)
-  --Dispatch -> (s ~ num) ~~> (s ~ xt (skolem "Sx" ~~> skolem "Sy"))
-  Dispatch -> (s ~ num) ~~> (s ~ xt (s2 ~~> s3)) -- TODO: magical thinking
+  Dispatch -> (s ~ num) ~~> (s ~ xt (unknownS ~~> unknownS))
   Drop -> s ~ x1 ~~> s
   Dup -> (s ~ x1) ~~> (s ~ x1 ~ x1)
   Emit -> s ~ num ~~> s
   Equal -> (s ~ x1 ~ x1) ~~> (s ~ num)
   Execute -> (s ~ xt(s ~~> s2)) ~~> s2
-  --Execute -> (s ~ xt(s ~~> s2)) ~~> s3 -- TODO: magic
   Fetch -> (s ~ addr_cell x1) ~~> (s ~ x1)
   HerePointer -> s ~~> (s ~ addr_cell (addr c1))
   IsHidden -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ num)
   IsImmediate -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ num)
   Jump -> (s ~ xt(s ~~> s2)) ~~> s2
   Key -> s ~~> (s ~ num)
-  --Latest -> s ~~> (s ~ xt (skolem "Sx" ~~> skolem "Sy"))
-  Latest -> s ~~> (s ~ xt (s2 ~~> s3))
+  Latest -> s ~~> (s ~ xt (unknownS ~~> unknownS))
   LessThan -> (s ~ x1 ~ x1) ~~> (s ~ num)
   Lit -> s ~~> (s ~ x1) -- TODO: x1 should be skolem
   Minus -> (s ~ x1 ~ x1) ~~> (s ~ num)
@@ -48,13 +45,13 @@ typeOfPrim = \case
   Store -> (s ~ x1 ~ addr_cell x1) ~~> s
   Swap -> (s ~ x1 ~ x2) ~~> (s ~ x2 ~ x1)
   XtToName -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ addr char)
-  XtToNext -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ xt (s4 ~~> s5)) -- TODO: skolem!
-  Zero -> s ~~> (s ~ x1) -- an XT can be zero :(
-  EntryComma -> do (s ~ addr char) ~~> s -- TODO ??
+  XtToNext -> (s ~ xt (s2 ~~> s3)) ~~> (s ~ xt (unknownS ~~> unknownS))
+  Zero -> s ~~> (s ~ x1)
+  EntryComma -> do (s ~ addr char) ~~> s -- TODO: addr entry
   Branch -> s ~~> s
   Mul -> (s ~ num ~ num) ~~> (s ~ num)
   Xor -> (s ~ num ~ num) ~~> (s ~ num)
-  Crash -> s ~~> s2 -- TODO: magic, ok
+  Crash -> s ~~> s
   FlipImmediate -> (s ~ xt (s2 ~~> s3)) ~~> s
   FlipHidden -> (s ~ xt (s2 ~~> s3)) ~~> s
   DivMod -> (s ~ num ~ num) ~~> (s ~ num ~ num)
@@ -89,12 +86,11 @@ typeOfPrim = \case
   SetKey -> undefined
 
   where
-    _x = skolem
+
+    -- It doesn't matter what these numbers are, so long asthey are all different
     s = mkSVar 101
     s2 = mkSVar 102
     s3 = mkSVar 103
-    s4 = mkSVar 104
-    s5 = mkSVar 105
     x1 = mkEVar 106
     x2 = mkEVar 107
     c1 = mkCVar 108

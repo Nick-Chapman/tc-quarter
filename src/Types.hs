@@ -11,7 +11,7 @@ module Types
   , CVar(..), cvarsOfContents
   -- convenience constructors
   , (~~>), (~), xt, num, addr, addr_cell, char, mkSVar, mkEVar, mkCVar
-  , skolem
+  , unknownS
   ) where
 
 import Text.Printf (printf)
@@ -42,8 +42,7 @@ data Machine = Machine
 -- Type of a stack (of elements)
 data Stack
   = S_Cons Stack Elem
---  | TS_empty
-  | S_Skolem String -- existential state. you dont get to pick!
+  | S_Unknown -- skolem/existential. you dont get to pick!
   | S_Var SVar -- (s1,s2,...)
 
 -- Type of a stack-element (fits in one cell)
@@ -107,8 +106,8 @@ mkEVar = E_Var . EVar
 mkCVar :: Int -> Contents
 mkCVar = C_Var . CVar
 
-skolem :: String ->  Stack
-skolem = S_Skolem
+unknownS :: Stack
+unknownS = S_Unknown
 
 ----------------------------------------------------------------------
 -- Show
@@ -131,7 +130,7 @@ instance Show Machine where
 instance Show Stack where
   show = \case
     S_Cons s v -> printf "%s.%s" (show s) (show v)
-    S_Skolem x -> x -- TODO: just need one, S?
+    S_Unknown -> "S?"
     S_Var v -> show v
 
 instance Show Elem where
@@ -173,7 +172,7 @@ svarsOfStack :: Stack -> [SVar]
 svarsOfStack = \case
   S_Cons s e -> svarsOfStack s ++ svarsOfElem e
   S_Var x -> [x] -- collect here
-  S_Skolem{} -> []
+  S_Unknown -> []
 
 svarsOfElem :: Elem -> [SVar]
 svarsOfElem = \case
@@ -203,7 +202,7 @@ evarsOfStack :: Stack -> [EVar]
 evarsOfStack = \case
   S_Cons s e -> evarsOfStack s ++ evarsOfElem e
   S_Var{} -> []
-  S_Skolem{} -> []
+  S_Unknown -> []
 
 evarsOfElem :: Elem -> [EVar]
 evarsOfElem = \case
@@ -233,7 +232,7 @@ cvarsOfStack :: Stack -> [CVar]
 cvarsOfStack = \case
   S_Cons s e -> cvarsOfStack s ++ cvarsOfElem e
   S_Var{} -> []
-  S_Skolem{} -> []
+  S_Unknown -> []
 
 cvarsOfElem :: Elem -> [CVar]
 cvarsOfElem = \case
