@@ -87,7 +87,7 @@ tc xstate te@Tenv{u,last,nErrs} high = do
 
   when reportTypeError $ do
     sequence_ [ printf "** TypeError: %s\n" (show e) | e <- errs ]
-    case errs of [] -> pure (); _ -> printf "\n%s\n" (show te2)
+    --case errs of [] -> pure (); _ -> printf "\n%s\n" (show te2)
 
   pure
     ( te2
