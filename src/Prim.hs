@@ -30,6 +30,7 @@ data Prim
   | BitShiftRight
   | Sp
   | Sp0
+  | AsNum
   | ReturnStackPointer
   | ReturnStackPointerBase
   | GetKey

@@ -108,6 +108,7 @@ kernelDictionary =
   , ("/2", BitShiftRight)
   , ("sp", Sp)
   , ("sp0", Sp0)
+  , ("as-num", AsNum)
   , ("rsp", ReturnStackPointer)
   , ("rsp0", ReturnStackPointerBase)
   , ("get-key", GetKey)
@@ -393,6 +394,8 @@ prim1 = \case
   Sp -> do
     a <- StackPointer
     Push (valueOfAddr a)
+  AsNum -> do -- Nop for sake of type checking
+    pure ()
   GetKey -> do
     Push (valueOfAddr (AP Key))
 

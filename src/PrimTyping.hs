@@ -63,6 +63,7 @@ typeOfPrim = \case
   BitShiftRight -> (s ~ num) ~~> (s ~ num)
   Sp -> s ~~> (s ~ addr_cell num)
   Sp0 -> s ~~> (s ~ addr_cell num)
+  AsNum -> (s ~ x1) ~~> (s ~ num)
   ReturnStackPointer -> s ~~> (s ~ addr_cell x1)
   ReturnStackPointerBase -> s ~~> (s ~ addr_cell x1)
   Time ->  s ~~> (s ~ num ~ num)

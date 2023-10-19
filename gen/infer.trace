@@ -143,9 +143,6 @@ compiling :: (s -- s)
 Loading tools
 x :: (s.Num.Num -- s)
 mem :: (s -- s)
-** TypeError: ../quarter-forth/f/tools.f:20.5 (compose) : elem: &c2753 ~ Num
-** TypeError: ../quarter-forth/f/tools.f:21.3 (compose) : elem: &Num ~ Num
-** TypeError: ../quarter-forth/f/tools.f:22.4 (compose) : elem: &Num ~ Num
 memv :: (s -- s)
 e8 :: (s -- s.Num)
 c3 :: (s -- s.Num)
@@ -154,11 +151,11 @@ is-ret :: (s.Num -- s.Num)
 @rel->abs :: (s.&Num -- s.&Num)
 ** TypeError: ../quarter-forth/f/tools.f:40.4 (compose) : contents: Num ~ Char
 ** TypeError: ../quarter-forth/f/tools.f:40.18 (branch0) : contents: Num ~ Char
-** TypeError: ../quarter-forth/f/tools.f:41.20 (compose) : contents: Num ~ (s2884 -- s2885)
+** TypeError: ../quarter-forth/f/tools.f:41.20 (compose) : contents: Num ~ (s2893 -- s2894)
 disassemble :: (s.&Num -- s)
-** TypeError: ../quarter-forth/f/tools.f:58.4 (compose) : contents: (s2972 -- s2973) ~ Num
+** TypeError: ../quarter-forth/f/tools.f:58.4 (compose) : contents: (s2981 -- s2982) ~ Num
 x-see :: (s.&(s1 -- s2) -- s)
-** TypeError: ../quarter-forth/f/tools.f:64.18 (branch0) : stack cyclic: s3004.&(s3002 -- s3003) ~ s3004
+** TypeError: ../quarter-forth/f/tools.f:64.18 (branch0) : stack cyclic: s3013.&(s3011 -- s3012) ~ s3013
 see :: (s -- s)
 ** TypeError: ../quarter-forth/f/tools.f:70.0 (compose) : elem: Num ~ &Num
 ** TypeError: ../quarter-forth/f/tools.f:70.4 (compose) : elem: &Num ~ Num
@@ -173,12 +170,12 @@ times :: (s.&(s -- s1).x2 -- s)
 old-key :: (s -- s.&(s1 -- s1.Num))
 raw-key :: (s -- s.Num)
 is-escape :: (s.Num -- s.Num)
-** TypeError: ../quarter-forth/f/tools.f:114.5 (compose) : elem cyclic: x3161 ~ &(s3160.x3161.x3162 -- s3199.x3189.x3186)
+** TypeError: ../quarter-forth/f/tools.f:114.5 (compose) : elem cyclic: x3170 ~ &(s3169.x3170.x3171 -- s3208.x3198.x3195)
 pag-continue :: (s.x2.x3 -- s1)
 pag :: (s.x2.x3 -- s1)
 is-printable? :: (s.Num -- s.Num)
 emit-printable-or-dot :: (s.Num -- s)
-** TypeError: ../quarter-forth/f/tools.f:131.7 (branch0) : stack cyclic: s3262.x3261 ~ s3262
+** TypeError: ../quarter-forth/f/tools.f:131.7 (branch0) : stack cyclic: s3271.x3270 ~ s3271
 drop-if-not-zero :: (s.x1 -- s)
 default-0 :: (s -- s)
 dc :: (s.&Char -- s.&Char)
@@ -325,24 +322,24 @@ echo-off :: (s -- s)
 echo :: (s.Num -- s)
 ok :: (s -- s)
 ** TypeError: ../quarter-forth/f/buffer.f:32.5 (compose) : elem: Num ~ &Char
-** TypeError: ../quarter-forth/f/buffer.f:38.33 (branch0) : elem: Num ~ &c5559
-** TypeError: ../quarter-forth/f/buffer.f:40.5 (compose) : elem: Num ~ &c5500
+** TypeError: ../quarter-forth/f/buffer.f:38.33 (branch0) : elem: Num ~ &c5568
+** TypeError: ../quarter-forth/f/buffer.f:40.5 (compose) : elem: Num ~ &c5509
 fill-loop :: (s.Num -- s.Num)
-** TypeError: ../quarter-forth/f/buffer.f:57.11 (compose) : elem: &c5593 ~ Num
+** TypeError: ../quarter-forth/f/buffer.f:57.11 (compose) : elem: &c5602 ~ Num
 ** TypeError: ../quarter-forth/f/buffer.f:58.0 (compose) : elem: Num ~ &Char
 fill :: (s -- s)
 kb-pointer :: (s -- s.&c1)
 reset-kb-pointer :: (s -- s)
-** TypeError: ../quarter-forth/f/buffer.f:68.7 (branch0) : stack cyclic: s5652.x5645 ~ s5652
+** TypeError: ../quarter-forth/f/buffer.f:68.7 (branch0) : stack cyclic: s5661.x5654 ~ s5661
 buffered-key :: (s -- s.Num)
 **{SetKey}
 
 Welcome to Quarter Forth. A 16-bit Forth system running on x86.
 
-Bytes available: 55195 
+Bytes available: 55186 
 
 ** TypeError: ../quarter-forth/f/start.f:11.3 (compose) : contents: Num ~ Char
 wipe :: (s.&Char -- s)
 **{StartupIsComplete}
-#machine-ticks=8799765
-#errors=22
+#machine-ticks=8815503
+#errors=19
