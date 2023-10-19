@@ -68,7 +68,7 @@ tc :: X.State -> Tenv -> Addr -> IO (Tenv,Subst)
 tc xstate te@Tenv{u,last,nErrs} high = do
   --printf "**tc: %s -- %s\n" (show last) (show high)
   let context = makeContext xstate
-  let
+  {-let
     collectSlots :: Addr -> [(Addr,Slot)]
     collectSlots a = do
       if a == high then [] else do
@@ -76,8 +76,8 @@ tc xstate te@Tenv{u,last,nErrs} high = do
         let a' = offsetAddr (slotSize slot) a
         (a,slot) : collectSlots a'
 
-  let _slots = collectSlots last
-  --printf "\n%s\n" (show _slots)
+  let slots = collectSlots last
+  printf "\n%s\n" (show slots)-}
   let loc = lookupAddrLocation context last
   (errs,res) <- runInfer loc u (tcRange context te last high)
   let (u,subst,te1) = res
@@ -87,7 +87,11 @@ tc xstate te@Tenv{u,last,nErrs} high = do
 
   when reportTypeError $ do
     sequence_ [ printf "** TypeError: %s\n" (show e) | e <- errs ]
-    --case errs of [] -> pure (); _ -> printf "\n%s\n" (show te2)
+    case errs of
+      [] -> pure ()
+      _ -> do
+        --printf "\n%s\n" (_seeTenv context te2)
+        pure ()
 
   pure
     ( te2
@@ -106,13 +110,17 @@ data Tenv = Tenv
   , nErrs :: Int
   }
 
-instance Show Tenv where
-  show Tenv{last,m} = do
-    unlines
-      [ printf "%s : %s" (show addr) (show trans)
-      | (addr,trans) <- Map.toList m
-      , addr >= last
-      ]
+_seeTenv :: Context -> Tenv -> String
+_seeTenv context Tenv{last,m} = do
+  unlines
+    [ printf "%s %s : %s" (show addr) (rjust 25 (show slot)) (show trans)
+    | (addr,trans) <- Map.toList m
+    , addr >= last
+    , let slot = lookupAddrSlot context addr
+    ]
+
+rjust :: Int -> String -> String
+rjust n s = replicate (n - length s) ' ' ++ s
 
 tenv0 :: Tenv
 tenv0 = Tenv { last = AN 0, m = Map.empty, u = 0, nErrs = 0 }
@@ -192,10 +200,13 @@ tcSlot context te a0 slot = do
 
     SlotCall callAddr -> do
 
-      -- HACK TO BREAK RECURSION
-      stack <- freshStack
-      let m = Machine { stack }
-      let tsV = SL_Trans (T_Trans m m)
+      -- Break recursion. TODO: looses types?
+      s1 <- freshStack
+      --let s2 = s1 -- Prev broken; like this.
+      s2 <- freshStack
+      let m1 = Machine { stack = s1 }
+      let m2 = Machine { stack = s2 }
+      let tsV = SL_Trans (T_Trans m1 m2)
       let te0 = updateTenv a0 tsV te
 
       let a1 = offsetAddr (slotSize slot) a0

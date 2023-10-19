@@ -778,6 +778,7 @@ charOfSlot = \case
   SlotString (c:_) -> c
   --SlotLit v -> Char.chr (fromIntegral (numbOfValue v `mod` 256))
   slot -> error (printf "unexpected non-char slot: %s" (show slot))
+  -- _ -> '?'
 
 entryOfSlot :: Slot -> Entry
 entryOfSlot = \case

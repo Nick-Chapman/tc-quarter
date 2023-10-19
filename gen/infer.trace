@@ -65,7 +65,7 @@ space :: (s -- s)
 rot :: (s.x1.x2.x3 -- s.x2.x4.x1)
 -rot :: (s.x1.x2.x3 -- s.x3.x1.x4)
 show-if-not-hidden :: (s.&(s1 -- s2) -- s)
-words-continue :: (s.&(s1 -- s2).&(s1 -- s2) -- s.&(s1 -- s2).&(s1 -- s2))
+words-continue :: (s.x1.x1 -- s.x1.x1)
 words-since :: (s.&(S? -- S?) -- s)
 words :: (s -- s)
 x-hide :: (s.&(s1 -- s2) -- s)
@@ -123,7 +123,6 @@ base :: (s -- s.Num)
 number-loop :: (s.Num.&Char -- s.Num.Num)
 number? :: (s.&Char -- s.Num.Num)
 print-digit :: (s.Num -- s)
-** TypeError: ../quarter-forth/f/forth.f:381.10 (branch0) : stack cyclic: s2097 ~ s2097.Num
 dot-loop :: (s.Num -- s)
 .decimal :: (s.Num -- s)
 .hex1 :: (s.Num -- s)
@@ -133,6 +132,8 @@ dot-loop :: (s.Num -- s)
 . :: (s.Num -- s)
 ? :: (s.&Num -- s)
 s= :: (s.&Char.&Char -- s.Num)
+** TypeError: ../quarter-forth/f/forth.f:422.14 (compose) : stack mismatch: S? ~ S?
+** TypeError: ../quarter-forth/f/forth.f:422.14 (compose) : stack mismatch: S? ~ S?
 find-loop :: (s.&Char.&(s1 -- s2) -- s.&(s1 -- s2))
 find :: (s.&Char -- s.&(S? -- S?))
 find! :: (s.&Char -- s.&(S? -- S?))
@@ -140,6 +141,8 @@ find! :: (s.&Char -- s.&(S? -- S?))
 ** TypeError: ../quarter-forth/f/forth.f:440.9 (compose) : stack mismatch: S? ~ S?
 compiling :: (S? -- S?)
 : :: (S? -- S?)
+** TypeError: ../quarter-forth/f/forth.f:452.9 (compose) : stack mismatch: S? ~ S?.Num
+** TypeError: ../quarter-forth/f/forth.f:453.25 (branch0) : stack cyclic: s3345 ~ s3345.x3347
 [ :: (S? -- S?)
 Loading tools
 x :: (s.Num.Num -- s)
@@ -151,12 +154,12 @@ is-call :: (s.Num -- s.Num)
 is-ret :: (s.Num -- s.Num)
 @rel->abs :: (s.&Num -- s.&Num)
 ** TypeError: ../quarter-forth/f/tools.f:40.4 (compose) : contents: Num ~ Char
-** TypeError: ../quarter-forth/f/tools.f:40.18 (branch0) : contents: Num ~ Char
-** TypeError: ../quarter-forth/f/tools.f:41.20 (compose) : contents: Num ~ (s2829 -- s2830)
+** TypeError: ../quarter-forth/f/tools.f:45.6 (compose) : contents: Num ~ Char
+** TypeError: ../quarter-forth/f/tools.f:41.20 (compose) : contents: Num ~ (s3679 -- s3680)
 disassemble :: (s.&Num -- s)
-** TypeError: ../quarter-forth/f/tools.f:58.4 (compose) : contents: (s2917 -- s2918) ~ Num
+** TypeError: ../quarter-forth/f/tools.f:58.4 (compose) : contents: (s3791 -- s3792) ~ Num
 x-see :: (s.&(s1 -- s2) -- s)
-** TypeError: ../quarter-forth/f/tools.f:64.18 (branch0) : stack cyclic: s2947.&(s2945 -- s2946) ~ s2947
+** TypeError: ../quarter-forth/f/tools.f:64.18 (branch0) : stack cyclic: s3831.&(s3829 -- s3830) ~ s3831
 see :: (s -- s)
 ** TypeError: ../quarter-forth/f/tools.f:70.0 (compose) : elem: Num ~ &Num
 ** TypeError: ../quarter-forth/f/tools.f:70.4 (compose) : elem: &Num ~ Num
@@ -171,12 +174,12 @@ times :: (s.&(s -- s1).x2 -- s)
 old-key :: (s -- s.&(s1 -- s1.Num))
 raw-key :: (s -- s.Num)
 is-escape :: (s.Num -- s.Num)
-** TypeError: ../quarter-forth/f/tools.f:114.5 (compose) : elem cyclic: x3104 ~ &(s3103.x3104.x3105 -- s3142.x3132.x3129)
+** TypeError: ../quarter-forth/f/tools.f:114.5 (compose) : elem cyclic: x4033 ~ &(s4032.x4033.x4034 -- s4031.x4072.x4068)
 pag-continue :: (s.x2.x3 -- s1)
 pag :: (s.x2.x3 -- s1)
 is-printable? :: (s.Num -- s.Num)
 emit-printable-or-dot :: (s.Num -- s)
-** TypeError: ../quarter-forth/f/tools.f:131.7 (branch0) : stack cyclic: s3205.x3204 ~ s3205
+** TypeError: ../quarter-forth/f/tools.f:131.7 (branch0) : stack cyclic: s4164.x4163 ~ s4164
 drop-if-not-zero :: (s.x1 -- s)
 default-0 :: (s -- s)
 dc :: (s.&Char -- s.&Char)
@@ -329,16 +332,15 @@ fill-loop :: (s.&Char -- s.&Char)
 fill :: (s -- s)
 kb-pointer :: (s -- s.&c1)
 reset-kb-pointer :: (s -- s)
-** TypeError: ../quarter-forth/f/buffer.f:70.7 (branch0) : stack cyclic: s5600.x5593 ~ s5600
 buffered-key :: (s -- s.Num)
 **{SetKey}
 
 Welcome to Quarter Forth. A 16-bit Forth system running on x86.
 
-Bytes available: 55172 
+Bytes available: 55279 
 
 ** TypeError: ../quarter-forth/f/start.f:11.3 (compose) : contents: Num ~ Char
 wipe :: (s.&Char -- s)
 **{StartupIsComplete}
-#machine-ticks=8831193
-#errors=17
+#machine-ticks=8445241
+#errors=19

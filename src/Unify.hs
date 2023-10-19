@@ -83,13 +83,14 @@ unifyElem e1x e2x = do
 
     (E_Number, E_Number) -> pure ()
     (E_Address c1, E_Address c2) -> unifyContents c1 c2
-    (E_Unknown, E_Unknown) -> nope
 
     (E_Number{}, _) -> nope
     (_, E_Number{}) -> nope
 
     (E_Address{}, _) -> nope
     (_, E_Address{}) -> nope
+
+    (E_Unknown, E_Unknown) -> nope
 
 
 unifyContents :: Contents -> Contents -> Infer ()
