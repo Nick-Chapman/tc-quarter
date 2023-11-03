@@ -65,8 +65,10 @@ space :: (s -- s)
 rot :: (s.x1.x2.x3 -- s.x2.x4.x1)
 -rot :: (s.x1.x2.x3 -- s.x3.x1.x4)
 show-if-not-hidden :: (s.&(s1 -- s2) -- s)
-words-continue :: (s.x1.x1 -- s.x1.x1)
+rev-words-continue :: (s.x1.x1 -- s.x1.x1)
 words-since :: (s.&(S? -- S?) -- s)
+rev-words :: (s -- s)
+words-continue :: (s.&(s1 -- s2) -- s)
 words :: (s -- s)
 x-hide :: (s.&(s1 -- s2) -- s)
 hide :: (s -- s)
@@ -100,6 +102,9 @@ max :: (s.x1.x1 -- s.x1)
 mod :: (s.Num.Num -- s.Num)
 / :: (s.Num.Num -- s.Num)
 +! :: (s.Num.&Num -- s)
+2 :: (s -- s.Num)
+10 :: (s -- s.Num)
+16 :: (s -- s.Num)
 256 :: (s -- s.Num)
 akey? :: (s -- s.Num)
 ekey? :: (s -- s.Num)
@@ -107,10 +112,6 @@ do :: (s -- s.&c1)
 i :: (s -- s)
 loop :: (s.&c1 -- s)
 erase :: (s.&Char.Num -- s)
-2 :: (s -- s.Num)
-10 :: (s -- s.Num)
-16 :: (s -- s.Num)
-256 :: (s -- s.Num)
 hex-mode :: (s -- s.&c1)
 hex :: (s -- s)
 decimal :: (s -- s)
@@ -138,11 +139,11 @@ find! :: (s.&Char -- s.&(S? -- S?))
 ' :: (s -- s.&(S? -- S?))
 compiling :: (S? -- S?)
 : :: (S? -- S?)
-** TypeError: ../quarter-forth/f/forth.f:452.9 (compose) : stack mismatch: S? ~ S?.Num
-** TypeError: ../quarter-forth/f/forth.f:453.25 (branch0) : stack cyclic: s3345 ~ s3345.x3347
+** TypeError: ../quarter-forth/f/forth.f:461.9 (compose) : stack mismatch: S? ~ S?.Num
+** TypeError: ../quarter-forth/f/forth.f:462.25 (branch0) : stack cyclic: s3394 ~ s3394.x3396
 [ :: (S? -- S?)
-Loading tools
 x :: (s.Num.Num -- s)
+Loading tools
 mem :: (s -- s)
 memv :: (s -- s)
 e8 :: (s -- s.Num)
@@ -150,19 +151,19 @@ c3 :: (s -- s.Num)
 is-call :: (s.Num -- s.Num)
 is-ret :: (s.Num -- s.Num)
 @rel->abs :: (s.&Num -- s.&Num)
-** TypeError: ../quarter-forth/f/tools.f:40.4 (compose) : contents: Num ~ Char
-** TypeError: ../quarter-forth/f/tools.f:45.6 (compose) : contents: Num ~ Char
-** TypeError: ../quarter-forth/f/tools.f:41.20 (compose) : contents: Num ~ (s3679 -- s3680)
+** TypeError: ../quarter-forth/f/tools.f:33.4 (compose) : contents: Num ~ Char
+** TypeError: ../quarter-forth/f/tools.f:38.6 (compose) : contents: Num ~ Char
+** TypeError: ../quarter-forth/f/tools.f:34.20 (compose) : contents: Num ~ (s3728 -- s3729)
 disassemble :: (s.&Num -- s)
-** TypeError: ../quarter-forth/f/tools.f:58.4 (compose) : contents: (s3791 -- s3792) ~ Num
+** TypeError: ../quarter-forth/f/tools.f:51.4 (compose) : contents: (s3840 -- s3841) ~ Num
 x-see :: (s.&(s1 -- s2) -- s)
-** TypeError: ../quarter-forth/f/tools.f:64.18 (branch0) : stack cyclic: s3831.&(s3829 -- s3830) ~ s3831
+** TypeError: ../quarter-forth/f/tools.f:57.18 (branch0) : stack cyclic: s3880.&(s3878 -- s3879) ~ s3880
 see :: (s -- s)
-** TypeError: ../quarter-forth/f/tools.f:70.0 (compose) : elem: Num ~ &Num
-** TypeError: ../quarter-forth/f/tools.f:70.4 (compose) : elem: &Num ~ Num
-** TypeError: ../quarter-forth/f/tools.f:70.8 (compose) : elem: Num ~ &Num
+** TypeError: ../quarter-forth/f/tools.f:63.0 (compose) : elem: Num ~ &Num
+** TypeError: ../quarter-forth/f/tools.f:63.4 (compose) : elem: &Num ~ Num
+** TypeError: ../quarter-forth/f/tools.f:63.8 (compose) : elem: Num ~ &Num
 .s-continue :: (s.Num -- s)
-** TypeError: ../quarter-forth/f/tools.f:78.4 (compose) : elem: &Num ~ Num
+** TypeError: ../quarter-forth/f/tools.f:71.4 (compose) : elem: &Num ~ Num
 .s :: (s -- s)
 depth :: (s -- s.Num)
 rdepth :: (s -- s.Num)
@@ -171,12 +172,12 @@ times :: (s.&(s -- s1).x2 -- s)
 old-key :: (s -- s.&(s1 -- s1.Num))
 raw-key :: (s -- s.Num)
 is-escape :: (s.Num -- s.Num)
-** TypeError: ../quarter-forth/f/tools.f:114.5 (compose) : elem cyclic: x4033 ~ &(s4032.x4033.x4034 -- s4031.x4072.x4068)
+** TypeError: ../quarter-forth/f/tools.f:107.5 (compose) : elem cyclic: x4082 ~ &(s4081.x4082.x4083 -- s4080.x4121.x4117)
 pag-continue :: (s.x2.x3 -- s1)
 pag :: (s.x2.x3 -- s1)
 is-printable? :: (s.Num -- s.Num)
 emit-printable-or-dot :: (s.Num -- s)
-** TypeError: ../quarter-forth/f/tools.f:131.7 (branch0) : stack cyclic: s4164.x4163 ~ s4164
+** TypeError: ../quarter-forth/f/tools.f:124.7 (branch0) : stack cyclic: s4213.x4212 ~ s4213
 drop-if-not-zero :: (s.x1 -- s)
 default-0 :: (s -- s)
 dc :: (s.&Char -- s.&Char)
@@ -332,10 +333,10 @@ buffered-key :: (s -- s.Num)
 
 Welcome to Quarter Forth. A 16-bit Forth system running on x86.
 
-Bytes available: 55279 
+Bytes available: 55214 
 
 ** TypeError: ../quarter-forth/f/start.f:11.3 (compose) : contents: Num ~ Char
 wipe :: (s.&Char -- s)
 **{StartupIsComplete}
-#machine-ticks=8445241
+#machine-ticks=8499414
 #errors=14
