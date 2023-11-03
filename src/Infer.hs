@@ -158,8 +158,8 @@ subTrans sub = \case
 
 subMachine :: Subst -> Machine -> Machine
 subMachine sub = \case
-  Machine{stack} ->
-    Machine { stack = subStack sub stack }
+  Machine{here,stack} ->
+    Machine { here = subContents sub here, stack = subStack sub stack }
 
 subStack :: Subst -> Stack -> Stack
 subStack sub = loop

@@ -27,7 +27,8 @@ import Types
   , Trans (..)
   , Machine (..)
   , Elem
-  , (~~>), (~), num, xt, addr
+  , (~), num, xt, addr
+  , mkMachine, mkTrans
   )
 
 import PrimTyping (typeOfPrim)
@@ -54,7 +55,8 @@ tcTestQuarterDef n xstate c = do
   let a = lookupDispatchTable context c
   let loc = Loc "test" n 0
   let u0 = 0
-  (errs,(_,subst,(ts,_))) <- runInfer loc u0 (tcAddr context tenv0 a)
+  (errs,(_,subst,(ts,_te))) <- runInfer loc u0 (tcAddr context tenv0 a)
+  --printf "\n%s\n" (_seeTenv context _te)
   case errs of
     err:_ -> pure (Left err)
     [] -> do
@@ -194,18 +196,21 @@ tcSlot context te a0 slot = do
 
     SlotRet -> do
       stack <- freshStack
-      let m = Machine { stack }
+      here <- freshContents
+      let m = Machine { stack, here }
       let trans = T_Trans m m
       pure (SL_Trans trans, te)
 
     SlotCall callAddr -> do
 
       -- Break recursion. TODO: looses types?
-      s1 <- freshStack
       --let s2 = s1 -- Prev broken; like this.
+      s1 <- freshStack
       s2 <- freshStack
-      let m1 = Machine { stack = s1 }
-      let m2 = Machine { stack = s2 }
+      h1 <- freshContents
+      h2 <- freshContents
+      let m1 = Machine { stack = s1, here = h1 }
+      let m2 = Machine { stack = s2, here = h2 }
       let tsV = SL_Trans (T_Trans m1 m2)
       let te0 = updateTenv a0 tsV te
 
@@ -291,7 +296,10 @@ tcPrim context te a1 prim = do
       case ts of
         SL_Elem elem -> do
           stack <- freshStack
-          let trans = stack ~~> (stack ~ elem)
+          here <- freshContents
+          let m1 = mkMachine here stack
+          let m2 = mkMachine here (stack ~ elem)
+          let trans = mkTrans m1 m2
           pure (trans, Next1 (nextSlotAddr context a1), te1)
         _ ->
           error (printf "unexpected non-literal-cell at address: %s" (show a1))

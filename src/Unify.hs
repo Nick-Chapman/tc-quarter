@@ -33,7 +33,8 @@ unifyTrans t1 t2 = do
 unifyMachine :: Machine -> Machine -> Infer ()
 unifyMachine m1 m2 = do
   case (m1,m2) of
-    (Machine{stack=s1},Machine{stack=s2}) ->
+    (Machine{here=h1,stack=s1},Machine{here=h2,stack=s2}) -> do
+      unifyContents h1 h2
       unifyStack s1 s2
 
 unifyStack :: Stack -> Stack -> Infer ()

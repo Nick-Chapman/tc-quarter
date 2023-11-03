@@ -10,8 +10,9 @@ module Types
   , EVar(..), evarsOfElem
   , CVar(..), cvarsOfContents
   -- convenience constructors
-  , (~~>), (~), xt, num, addr, addr_cell, char, mkSVar, mkEVar, mkCVar
+  , (~), xt, num, addr, cell_addr, contents, addr_cell, char, mkSVar, mkEVar, mkCVar
   , unknownS, unknownE
+  , mkMachine, mkTrans
   ) where
 
 import Text.Printf (printf)
@@ -34,7 +35,8 @@ data Trans
 
 -- Type of a machine state
 data Machine = Machine
-  { stack :: Stack
+  { here :: Contents
+  , stack :: Stack
   -- TODO: we also need the return stack
   -- TODO: and we need info relating to here/compiling
   }
@@ -77,8 +79,11 @@ deriving instance Eq Contents
 ----------------------------------------------------------------------
 -- convenience constructors
 
-(~~>) :: Stack -> Stack -> Trans
-(~~>) stack1 stack2 = T_Trans (Machine stack1) (Machine stack2)
+mkTrans :: Machine -> Machine -> Trans
+mkTrans = T_Trans
+
+mkMachine :: Contents -> Stack -> Machine
+mkMachine here stack = Machine { here, stack }
 
 (~) :: Stack -> Elem -> Stack
 (~) stack elem = S_Cons stack elem
@@ -94,6 +99,12 @@ addr = E_Address
 
 addr_cell :: Elem -> Elem
 addr_cell = E_Address . C_Elem
+
+cell_addr :: Contents -> Contents
+cell_addr = C_Elem . E_Address
+
+contents :: Elem -> Contents
+contents = C_Elem
 
 char :: Contents
 char = C_Char
@@ -129,7 +140,11 @@ instance Show Trans where
 
 instance Show Machine where
   show = \case
-    Machine{stack} -> show stack
+    Machine{here,stack} -> do
+      let brief = True
+      if brief
+      then show stack
+      else printf "%s; %s" (show here) (show stack)
 
 instance Show Stack where
   show = \case
@@ -140,7 +155,7 @@ instance Show Stack where
 instance Show Elem where
   show = \case
     E_Number -> "Num"
-    E_Address c -> printf "&%s" (show c)
+    E_Address c -> printf "&%s" (show c) -- TODO: This should be E_Contents
     E_Unknown -> "X?"
     E_Var v -> show v
 
@@ -153,14 +168,18 @@ instance Show Contents where
 
 instance Show SVar where
   show = \case
-    SVar 0 -> "s" -- bit less noisy
+    SVar 0 -> "s"
     SVar n -> printf "s%s" (show n)
 
 instance Show EVar where
-  show (EVar n) = printf "x%s" (show n)
+  show = \case
+    EVar 0 -> "x"
+    EVar n -> printf "x%s" (show n)
 
 instance Show CVar where
-  show (CVar n) = printf "c%s" (show n)
+  show = \case
+    CVar 0 -> "c"
+    CVar n -> printf "c%s" (show n)
 
 ----------------------------------------------------------------------
 -- svarsOf*
@@ -171,7 +190,7 @@ svarsOfTrans = \case
 
 svarsOfMachine :: Machine -> [SVar]
 svarsOfMachine = \case
-  Machine{stack} -> svarsOfStack stack
+  Machine{here,stack} -> svarsOfContents here ++ svarsOfStack stack
 
 svarsOfStack :: Stack -> [SVar]
 svarsOfStack = \case
@@ -202,7 +221,7 @@ evarsOfTrans = \case
 
 evarsOfMachine :: Machine -> [EVar]
 evarsOfMachine = \case
-  Machine{stack} -> evarsOfStack stack
+  Machine{here,stack} -> evarsOfContents here ++ evarsOfStack stack
 
 evarsOfStack :: Stack -> [EVar]
 evarsOfStack = \case
@@ -233,7 +252,7 @@ cvarsOfTrans = \case
 
 cvarsOfMachine :: Machine -> [CVar]
 cvarsOfMachine = \case
-  Machine{stack} -> cvarsOfStack stack
+  Machine{here,stack} -> cvarsOfContents here ++ cvarsOfStack stack
 
 cvarsOfStack :: Stack -> [CVar]
 cvarsOfStack = \case

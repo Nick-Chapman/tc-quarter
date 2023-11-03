@@ -4,8 +4,9 @@ module Tests (run) where
 import Testing (test,Testing,TestCase(..),Expect(..))
 
 import Types
-  ( makeScheme, Trans
-  , (~~>), (~), num, xt, mkSVar, mkEVar, mkCVar, addr, addr_cell
+  ( makeScheme, Trans, Stack, Contents, Machine
+  , (~), num, xt, mkSVar, mkEVar, mkCVar, addr, addr_cell, cell_addr, contents
+  , mkTrans, mkMachine, char
   )
 
 import qualified Testing (run)
@@ -20,6 +21,7 @@ run = Testing.run $ do
       , ":# 'L ~L, ~> ~, ;"
       , ":i ~L ^B?, ~>~H~@ 0# ~, ;"
       , ":t ~D~H~@~W~-~W~! ;"
+      , ":h ~H~@ ;"
       ]
 
   let
@@ -29,6 +31,7 @@ run = Testing.run $ do
 
   let
     -- No, we get a type error
+
     no :: String -> Testing ()
     no code = test TestCase { setup, code } ExpectError { frag = "" }
 
@@ -38,14 +41,30 @@ run = Testing.run $ do
     see :: String -> Testing ()
     see code = test TestCase { setup, code } ExpectError { frag = "WHAT" }
 
-  let _ = see
 
   let
+    h = mkCVar 100
     s = mkSVar 101
     s1 = mkSVar 102
     x1 = mkEVar 103
     x2 = mkEVar 104
     c1 = mkCVar 105
+    --c2 = mkCVar 106
+
+  let
+    (~~>) :: Stack -> Stack -> Trans
+    (~~>) stack1 stack2 = do
+      mkTrans (mkMachine h stack1) (mkMachine h stack2)
+
+    (~~~>) :: Machine -> Machine -> Trans
+    (~~~>) = mkTrans
+
+    (/) :: Contents -> Stack -> Machine
+    (/) = mkMachine
+
+  let _ = (see,no,nox,yes,s1,x1,x2,num,xt,addr_cell,s,c1,(~~>),(~),addr
+          , (~~~>),(/),cell_addr
+          )
 
   yes "  ~?~>" $ (s ~ num) ~~> s
   yes "~^~?~>" $ s ~~> s
@@ -53,12 +72,12 @@ run = Testing.run $ do
   yes "~O~O" $ (s ~ x1 ~ x2) ~~> (s ~ x1 ~ x2 ~ x1 ~ x2)
   no "~D~!"
 
-  yes "~H~@" $ s ~~> (s ~ addr c1)
-  yes "~H~@~@" $ s ~~> (s ~ x1)
-  yes "~H~@~C" $ s ~~> (s ~ num)
+  yes "~H~@" $ s ~~> (s ~ addr h)
+  yes "~H~@~@" $ (contents x1/s) ~~~> (contents x1 / (s ~ x1))
+  yes "~H~@~C" $ (char/s) ~~~> (char/ (s ~ num))
 
-  yes "~L ^B?, ~>~H~@ 0# ~," $ s ~~> (s ~ addr c1) -- if
-  yes "~D~H~@~W~-~W~! " $ (s ~ addr_cell num) ~~> s -- then
+  yes "~L ^B?, ~>~H~@ 0# ~," $ s ~~> (s ~ addr h) -- if
+  yes "~D~H~@~W~-~W~! " $ (contents num/(s ~ addr_cell num)) ~~~> (contents num/s) -- then
 
   yes "~D~@~W~!" $ (s ~ addr_cell x1) ~~> s
   nox "~D~C~W~!" $ "Num ~ Char"
@@ -80,3 +99,10 @@ run = Testing.run $ do
 
   yes "~0~V" $ s ~~> s1
   yes "~1~+~V" $ (s ~ xt(s ~~> s1)) ~~> s1
+
+  yes "~H~@" $ s ~~> (s ~ addr h)
+  yes "~H~@ ~H~@" $ s ~~> (s ~ addr h ~ addr h)
+
+  -- TODO: typecheck setup code so "h" works the same as "H@"
+  -- yes "~h" $ s ~~> (s ~ addr c1)
+  -- yes "~h ~h" $ s ~~> (s ~ addr c1 ~ addr c1)

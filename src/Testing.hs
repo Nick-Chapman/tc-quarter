@@ -51,6 +51,7 @@ runTest n (Test (TestCase{setup,code}) x) = do
       printf "(%d) %s (execution failed)\nerr: %s\n" n code err
       pure False
     Right m -> do
+      -- TODO: fix problems caused by setup code not being type checked
       actual <- tcTestQuarterDef n m 'z'
       case (x,actual) of
         (ExpectError{frag}, Left err) -> do
@@ -70,6 +71,7 @@ runTest n (Test (TestCase{setup,code}) x) = do
             printf "(%d) %s (infered type not as expected)\n" n code
             printf "want: %s\n" (show want)
             printf "got: %s\n" (show got)
+            --printf "got0: %s\n" (show trans)
             pure False
 
 

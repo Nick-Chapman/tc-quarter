@@ -15,23 +15,22 @@ import System.FilePath (takeDirectory)
 main :: IO ()
 main = do
   Tests.run
-  _main
-
-_main :: IO ()
-_main = do
   putStrLn "*tc-quarter*"
   args <- getArgs
   config <- parseCommandLine args
-  let Config{listFile} = config
-  files <- readListFile listFile
-  inp <- inputFiles files
-  runInteraction inp X.interaction
+  case config of
+    JustTests -> pure ()
+    RunListFile listFile -> do
+      files <- readListFile listFile
+      inp <- inputFiles files
+      runInteraction inp X.interaction
 
-data Config = Config { listFile :: FilePath }
+data Config = JustTests | RunListFile { listFile :: FilePath }
 
 parseCommandLine :: [String] -> IO Config
 parseCommandLine = \case
-  [listFile] -> pure $ Config { listFile }
+  [] -> pure $ JustTests
+  [listFile] -> pure $ RunListFile { listFile }
   args -> error (show ("parseCommandLine",args))
 
 readListFile :: FilePath -> IO [FilePath]
