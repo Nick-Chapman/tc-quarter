@@ -7,7 +7,7 @@ beeb = ../beeb-quarter
 exe = .stack-work/dist/x86_64-linux/Cabal-3.6.3.0/build/main.exe/main.exe
 
 beeb: $(exe) $(wildcard $(beeb)/f/*)
-	$(exe) $(beeb)/full.list
+	$(exe) -tc $(beeb)/full.list
 
 play: $(exe)
 	$(exe) play.list
@@ -22,4 +22,4 @@ $(exe): src/*.hs
 system = $(quarter)/full.list
 
 gen/infer.trace: $(exe) $(system) $(wildcard $(quarter)/f/*) Makefile
-	$(exe) -unit -tc $(system) | tee $@
+	$(exe) -unit -ti $(system) | tee $@

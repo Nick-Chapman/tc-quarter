@@ -345,5 +345,5 @@ Bytes available: 55279
 ** TypeError: ../quarter-forth/f/start.f:11.3 (compose) : contents: Num ~ Char
 wipe :: (s.&Char -- s)
 **{StartupIsComplete}
-#machine-ticks=8770895
+#machine-ticks=8777841
 #errors=16

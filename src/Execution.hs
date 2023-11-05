@@ -124,6 +124,8 @@ kernelDictionary =
   , ("cls",Cls)
   , ("KEY",KEY)
   , ("set-key",SetKey)
+  , ("fx",BeebFX)
+  , ("mode",BeebMode)
   ]
 
 data Interaction
@@ -438,6 +440,15 @@ prim1 = \case
     Message "{ReadCharCol}"
     Push (valueOfNumb 11)
     Push (valueOfNumb 22)
+
+  BeebFX -> do
+    Message "{BeebFX}"
+    _ <- Pop
+    pure ()
+  BeebMode -> do
+    Message "{BeebMode}"
+    _ <- Pop
+    pure ()
 
   -- unimplemented
   ReturnStackPointer -> do

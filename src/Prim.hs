@@ -46,4 +46,6 @@ data Prim
   | Cls
   | KEY
   | SetKey
+  | BeebFX
+  | BeebMode
   deriving (Eq,Ord,Show,Enum,Bounded)

@@ -39,7 +39,8 @@ parse :: Config -> [String] -> IO Config
 parse config = \case
   [] -> pure config
   "-unit":args -> parse config { runUnitTest = True } args
-  "-tc":args -> parse config { runTC = True, reportInfer = True } args
+  "-tc":args -> parse config { runTC = True } args
+  "-ti":args -> parse config { runTC = True, reportInfer = True } args
   file:args ->
     parse config { listFileMaybe = Just file } args
 

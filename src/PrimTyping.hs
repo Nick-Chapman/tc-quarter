@@ -74,6 +74,8 @@ typeOfPrim = \case
   Cls -> s ~~> s
   KEY -> s ~~> (s ~ num)
   Exit -> s ~~> s
+  BeebFX -> (s ~ num ~ num ~ num) ~~> s
+  BeebMode -> (s ~ num) ~~> s
 
   -- TODO: unimplemented
   Kdx_K -> undefined
