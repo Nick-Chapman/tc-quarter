@@ -2,37 +2,56 @@
 module Top (main) where
 
 import Control.Monad (when)
+import Data.List.Extra (trim)
 import Execution (Interaction(..),Loc(..),Def(..))
+import System.Environment (getArgs)
+import System.FilePath (takeDirectory)
 import System.IO (hFlush, stdout)
-import Tests (run)
 import Text.Printf (printf)
 import TypeChecking (tc,Tenv(..),tenv0,lookupTenv)
 import qualified Execution as X (interaction,State(..))
-import System.Environment (getArgs)
-import Data.List.Extra (trim)
-import System.FilePath (takeDirectory)
+import qualified Tests (run)
 
 main :: IO ()
 main = do
-  Tests.run
-  _main
-
-_main :: IO ()
-_main = do
   putStrLn "*tc-quarter*"
   args <- getArgs
-  config <- parseCommandLine args
-  let Config{listFile} = config
-  files <- readListFile listFile
-  inp <- inputFiles files
-  runInteraction inp X.interaction
+  config <- parse config0 args
+  run config
 
-data Config = Config { listFile :: FilePath }
+data Config = Config
+  { runUnitTest :: Bool
+  , listFileMaybe :: Maybe FilePath
+  , reportInfer :: Bool
+  , runTC :: Bool
+  }
 
-parseCommandLine :: [String] -> IO Config
-parseCommandLine = \case
-  [listFile] -> pure $ Config { listFile }
-  args -> error (show ("parseCommandLine",args))
+config0 :: Config
+config0 =
+  Config
+  { runUnitTest = False
+  , listFileMaybe = Nothing
+  , runTC = False
+  , reportInfer = False
+  }
+
+parse :: Config -> [String] -> IO Config
+parse config = \case
+  [] -> pure config
+  "-unit":args -> parse config { runUnitTest = True } args
+  "-tc":args -> parse config { runTC = True, reportInfer = True } args
+  file:args ->
+    parse config { listFileMaybe = Just file } args
+
+run :: Config -> IO ()
+run config@Config{listFileMaybe,runUnitTest} =
+  case listFileMaybe of
+    Nothing -> Tests.run
+    Just listFile -> do
+      when runUnitTest $ Tests.run
+      files <- readListFile listFile
+      inp <- inputFiles files
+      runInteraction config inp X.interaction
 
 readListFile :: FilePath -> IO [FilePath]
 readListFile path = do
@@ -45,8 +64,8 @@ readListFile path = do
     , filename /= ""
     ]
 
-runInteraction :: Input -> Interaction -> IO ()
-runInteraction = loop tenv0
+runInteraction :: Config -> Input -> Interaction -> IO ()
+runInteraction Config{runTC,reportInfer} = loop tenv0
   where
     loop :: Tenv -> Input -> Interaction -> IO ()
     loop tenv inp = \case
@@ -76,12 +95,10 @@ runInteraction = loop tenv0
         loop tenv inp' (f m)
       IWhere f -> do
         loop tenv inp (f (location inp))
-      ITC m a defs i -> do
+      ITC m a defs i -> if not runTC then loop tenv inp i else do
         e <- TypeChecking.tc m tenv a
         case e of
           (tenv,__subst) -> do
-            let
-              reportInfer = True
             when reportInfer $
               sequence_ [ report tenv def | def <- defs ]
             loop tenv inp i

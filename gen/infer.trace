@@ -1,5 +1,5 @@
-25 tests ran; all pass.
 *tc-quarter*
+25 tests ran; all pass.
 quarter.q
 ?' :: (s -- s.&(S? -- S?))
 ?~ :: (s -- s)

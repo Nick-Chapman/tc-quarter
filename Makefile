@@ -21,5 +21,5 @@ $(exe): src/*.hs
 
 system = $(quarter)/full.list
 
-gen/infer.trace: $(exe) $(system) $(wildcard $(quarter)/f/*)
-	$(exe) $(system) | tee $@
+gen/infer.trace: $(exe) $(system) $(wildcard $(quarter)/f/*) Makefile
+	$(exe) -unit -tc $(system) | tee $@
