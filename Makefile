@@ -1,25 +1,38 @@
 
-top: infer
+top: regression
 
 quarter = ../quarter-forth
-beeb = ../beeb-quarter
 
 exe = .stack-work/dist/x86_64-linux/Cabal-3.6.3.0/build/main.exe/main.exe
 
-beeb: $(exe) $(wildcard $(beeb)/f/*)
-	$(exe) -tc $(beeb)/full.list
+default = x86
 
-play: $(exe)
-	$(exe) play.list
+run: run-$(default)
+tc: tc-$(default)
+ti: ti-$(default)
 
-infer: gen/infer.trace
+regression: gen/infer.trace
 	git diff $^
+
+gen/infer.trace: $(exe) $(quarter)/$(default).list $(wildcard $(quarter)/f/*) Makefile
+	$(exe) -unit -ti $(quarter)/$(default).list | tee $@
+
+tc-unit-tests:
+	$(exe)
+
+# Just execute
+run-%:
+	$(exe) $(quarter)/$*.list
+
+# Execute + type-checking (show errors)
+tc-%:
+	$(exe) -tc $(quarter)/$*.list
+
+# Execute + type-checking (show errors + inferred types)
+ti-%:
+	$(exe) -ti $(quarter)/$*.list
 
 $(exe): src/*.hs
 	stack build
 	touch $(exe)
 
-system = $(quarter)/full.list
-
-gen/infer.trace: $(exe) $(system) $(wildcard $(quarter)/f/*) Makefile
-	$(exe) -unit -ti $(system) | tee $@

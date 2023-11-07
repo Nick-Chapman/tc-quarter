@@ -137,6 +137,7 @@ compiling :: (S? -- S?)
 ** TypeError: ../quarter-forth/f/forth.f:437.25 (branch0) : stack cyclic: s3220 ~ s3220.x3222
 [ :: (S? -- S?)
 x :: (s.Num.Num -- s)
+banner :: (s -- s.&c1)
 backspace-code :: (s -- s.Num)
 screen-width :: (s -- s.Num)
 himem :: (s -- s.&Num)
@@ -153,13 +154,13 @@ is-xt :: (s.&(S? -- S?) -- s.Num)
 ** TypeError: ../quarter-forth/f/tools.f:38.13 (compose) : contents: Num ~ (S? -- S?)
 is-call-slot :: (s.&Num -- s.Num)
 ** TypeError: ../quarter-forth/f/tools.f:49.6 (compose) : contents: Num ~ Char
-** TypeError: ../quarter-forth/f/tools.f:45.16 (compose) : contents: Num ~ (s3531 -- s3532)
+** TypeError: ../quarter-forth/f/tools.f:45.16 (compose) : contents: Num ~ (s3539 -- s3540)
 disassemble :: (s.&Num -- s)
-** TypeError: ../quarter-forth/f/tools.f:62.4 (compose) : contents: (s3643 -- s3644) ~ Num
+** TypeError: ../quarter-forth/f/tools.f:62.4 (compose) : contents: (s3651 -- s3652) ~ Num
 x-see :: (s.&(s1 -- s2) -- s)
-** TypeError: ../quarter-forth/f/tools.f:68.18 (branch0) : stack cyclic: s3683.&(s3681 -- s3682) ~ s3683
+** TypeError: ../quarter-forth/f/tools.f:68.18 (branch0) : stack cyclic: s3691.&(s3689 -- s3690) ~ s3691
 see :: (s -- s)
-** TypeError: ../quarter-forth/f/tools.f:73.13 (branch0) : elem: &(s3698 -- s3699) ~ Num
+** TypeError: ../quarter-forth/f/tools.f:73.13 (branch0) : elem: &(s3706 -- s3707) ~ Num
 .item :: (s.&(S? -- S?) -- s)
 ** TypeError: ../quarter-forth/f/tools.f:78.0 (compose) : elem: Num ~ &&(S? -- S?)
 ** TypeError: ../quarter-forth/f/tools.f:78.4 (compose) : elem: &&(S? -- S?) ~ Num
@@ -177,12 +178,12 @@ times :: (s.&(s -- s1).x2 -- s)
 old-key :: (s -- s.&(s1 -- s1.Num))
 raw-key :: (s -- s.Num)
 is-escape :: (s.Num -- s.Num)
-** TypeError: ../quarter-forth/f/tools.f:148.5 (compose) : elem cyclic: x4005 ~ &(s4004.x4005.x4006 -- s4003.x4044.x4040)
+** TypeError: ../quarter-forth/f/tools.f:148.5 (compose) : elem cyclic: x4013 ~ &(s4012.x4013.x4014 -- s4011.x4052.x4048)
 pag-continue :: (s.x2.x3 -- s1)
 pag :: (s.x2.x3 -- s1)
 is-printable? :: (s.Num -- s.Num)
 emit-printable-or-dot :: (s.Num -- s)
-** TypeError: ../quarter-forth/f/tools.f:165.7 (branch0) : stack cyclic: s4136.x4135 ~ s4136
+** TypeError: ../quarter-forth/f/tools.f:165.7 (branch0) : stack cyclic: s4144.x4143 ~ s4144
 drop-if-not-zero :: (s.x1 -- s)
 default-0 :: (s -- s)
 dump-width :: (s -- s.Num)
@@ -340,10 +341,8 @@ buffered-key :: (s -- s.Num)
 
 Welcome to Quarter Forth. A 16-bit Forth system running on x86.
 
-Bytes available: 55279 
+Bytes available: 55274 
 
-** TypeError: ../quarter-forth/f/start.f:11.3 (compose) : contents: Num ~ Char
-wipe :: (s.&Char -- s)
 **{StartupIsComplete}
-#machine-ticks=8777841
-#errors=16
+#machine-ticks=7929572
+#errors=15

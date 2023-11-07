@@ -444,6 +444,8 @@ prim1 = \case
   BeebFX -> do
     Message "{BeebFX}"
     _ <- Pop
+    _ <- Pop
+    _ <- Pop
     pure ()
   BeebMode -> do
     Message "{BeebMode}"
